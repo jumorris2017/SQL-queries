@@ -3,8 +3,10 @@
 SELECT
       ce.STORE_NUM
       ,org.DIV_ORG_LVL_ID
-      ,c.CAL_MNTH_IN_YR_NUM
-      ,c.CAL_YR_NUM
+      ,c.FSCL_PER_IN_YR_NUM
+      --,c.CAL_MNTH_IN_YR_NUM
+      ,c.FSCL_YR_NUM
+      --,c.CAL_YR_NUM
       ,d.DRIVE_THRU_IND
 
   -- Total valid response counts by question
@@ -26,7 +28,8 @@ FROM APPDWH.AFT_CV_SRVY_RSPNS ce
 
   INNER JOIN APPDWH.ADT_CAL c
     ON TRUNC(ce.TRANS_DTM) = c.CAL_DT
-      AND c.FSCL_YR_NUM > 2015
+      AND c.FSCL_YR_NUM > 2015 
+      AND c.FSCL_PER_IN_YR_NUM = 12 -- ADDED FOR PT3
       
   INNER JOIN APPDWH.ADT_STORE d
     ON ce.STORE_NUM = d.STORE_NUM
@@ -43,8 +46,10 @@ WHERE ce.RSPNS_ID <> '9'  -- rspns_id = 9 for unanswered questions
 GROUP BY
     ce.STORE_NUM
     ,org.DIV_ORG_LVL_ID
-    ,c.CAL_MNTH_IN_YR_NUM
-    ,c.CAL_YR_NUM
+    ,c.FSCL_PER_IN_YR_NUM
+    --,c.CAL_MNTH_IN_YR_NUM
+    ,c.FSCL_YR_NUM
+    --,c.CAL_YR_NUM
     ,d.DRIVE_THRU_IND
 ;
 
