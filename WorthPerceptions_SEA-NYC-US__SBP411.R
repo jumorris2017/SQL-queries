@@ -127,51 +127,97 @@ plot2 <- ggplot() +
 print(plot2)
 
 
-#NEW YORK
+#ALL DATA - FROM SUBQUERIED SQL
 
 #load data
-newy <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/worth_perception_for_R_v3_111717.csv")
+wp4 <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/worth_perception_for_R_v4_112017.csv")
 #load NYC store data
 nypz <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/nycpricezonestore.csv")
 nyvec <- unique(nypz[,store_num])
 
-#convert date to R date type
-newy[, TRANS_DATE := as.Date(TRANS_DATE, "%d-%b-%y")]
-newy[, CAL_WK_IN_YR_NUM := as.numeric(CAL_WK_IN_YR_NUM)]
+#convert store number to numeric
+wp4[, STORE_NUM := as.numeric(STORE_NUM)]
 
+#subset to Seattle stores
+sea <- wp4[AREA_ORG_LVL_VERS_SID==10]
 #subset to NYC stores
-newy <- newy[STORE_NUM %in% nyvec]
-
-#create weeks that start on Saturdays
-#in 2016, weeks start on Fridays
-newy[CAL_YR_NUM==2016&DAY_ABBR_NM=="FR", new_week := CAL_WK_IN_YR_NUM-1]
-newy[CAL_YR_NUM==2016&DAY_ABBR_NM!="FR", new_week := CAL_WK_IN_YR_NUM]
-#in 2017, weeks start on Sundays
-newy[CAL_YR_NUM==2017&DAY_ABBR_NM=="SA", new_week := CAL_WK_IN_YR_NUM+1]
-newy[CAL_YR_NUM==2017&DAY_ABBR_NM!="SA", new_week := CAL_WK_IN_YR_NUM]
+ny <- wp4[STORE_NUM %in% nyvec]
+#wp4 is all of US
 
 #calculate week average
-newyag <- newy[, list(Q2_8_RESPONSE_TOTAL=sum(Q2_8_RESPONSE_TOTAL),
+seaag <- sea[, list(Q2_8_RESPONSE_TOTAL=sum(Q2_8_RESPONSE_TOTAL),
                     Q2_8_TB_CNT=sum(Q2_8_TB_CNT),
                     Q2_8_TB_SCORE=sum(Q2_8_TB_CNT)/sum(Q2_8_RESPONSE_TOTAL),
-                    num_stores=length(unique(STORE_NUM)),
-                    start_date=min(TRANS_DATE)),
-             by=c("CAL_YR_NUM","new_week")]
-newyag[, loc := "newy"]
-setorder(newyag,CAL_YR_NUM,start_date)
+                    num_stores=length(unique(STORE_NUM))),
+             by=c("CAL_YR_NUM","NEW_WEEK")]
+seaag[, loc := "SEA"]
+seaag[mapply(is.infinite, seaag)] <- NA
+seaag <- seaag[NEW_WEEK>19]
 
-#capture only the past 6 months
-newyag <- newyag[new_week>=19]
+#calculate week average
+nyag <- ny[, list(Q2_8_RESPONSE_TOTAL=sum(Q2_8_RESPONSE_TOTAL),
+                  Q2_8_TB_CNT=sum(Q2_8_TB_CNT),
+                  Q2_8_TB_SCORE=sum(Q2_8_TB_CNT)/sum(Q2_8_RESPONSE_TOTAL),
+                  num_stores=length(unique(STORE_NUM))),
+           by=c("CAL_YR_NUM","NEW_WEEK")]
+nyag[, loc := "NYC"]
+nyag[mapply(is.infinite, nyag)] <- NA
+nyag <- nyag[NEW_WEEK>19]
 
+#calculate week average
+wpag <- wp4[, list(Q2_8_RESPONSE_TOTAL=sum(Q2_8_RESPONSE_TOTAL),
+                  Q2_8_TB_CNT=sum(Q2_8_TB_CNT),
+                  Q2_8_TB_SCORE=sum(Q2_8_TB_CNT)/sum(Q2_8_RESPONSE_TOTAL),
+                  num_stores=length(unique(STORE_NUM))),
+           by=c("CAL_YR_NUM","NEW_WEEK")]
+wpag[, loc := "US"]
+wpag[mapply(is.infinite, wpag)] <- NA
+wpag <- wpag[NEW_WEEK>19]
+
+#rbind together
+l = list(seaag,nyag,wpag)
+totalag <- rbindlist(l,use.names=T,fill=T)
+
+#write file
+#write.xlsx(totalag,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/worth_perception_pricezones_112017.xlsx")
+
+#SEATTLE
 #set labels
 xlabel <- "Week in Calendar Year"
 ylabel <- "WP Top Box Score"
-tlabel <- "NYC: WP Top Box Score \nNote: weeks start on price-increase days"
+tlabel <- "Seattle: WP Top Box Score"
+slabel <- "*Note: weeks start on price-increase days"
 #set data and variables
-pdata <- newyag
-px <- newyag[, new_week]
-py <- newyag[, Q2_8_TB_SCORE]
-groupvar <- newyag[, CAL_YR_NUM]
+pdata <- seaag
+px <- seaag[, NEW_WEEK]
+py <- seaag[, Q2_8_TB_SCORE]
+groupvar <- seaag[, CAL_YR_NUM]
+#manual legend labels
+lname <- "Calendar Year"
+llabels <- c("2016","2017") 
+#line chart, factored by one variable
+plot1 <- ggplot() +
+  geom_line(data=pdata, aes(x=px, y=py, group=factor(groupvar), colour=factor(groupvar))) + 
+  xlab(xlabel) + ylab(ylabel) + theme_bw() +
+  scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
+  guides(colour = guide_legend(override.aes = list(size = 7))) + 
+  scale_y_continuous(limits=c(0,.4),labels=scales::percent) +
+  geom_vline(data=pdata, aes(xintercept=46), size=.5, colour="black") +
+  geom_vline(data=pdata, aes(xintercept=45), linetype="dashed", size=.5, colour="black") +
+  labs(title = tlabel, subtitle = slabel)
+print(plot1)
+
+#NEW YORK
+#set labels
+xlabel <- "Week in Calendar Year"
+ylabel <- "WP Top Box Score"
+tlabel <- "New York: WP Top Box Score"
+slabel <- "*Note: weeks start on price-increase days"
+#set data and variables
+pdata <- nyag
+px <- nyag[, NEW_WEEK]
+py <- nyag[, Q2_8_TB_SCORE]
+groupvar <- nyag[, CAL_YR_NUM]
 #manual legend labels
 lname <- "Calendar Year"
 llabels <- c("2016","2017") 
@@ -181,11 +227,60 @@ plot2 <- ggplot() +
   xlab(xlabel) + ylab(ylabel) + theme_bw() +
   scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
   guides(colour = guide_legend(override.aes = list(size = 7))) + 
-  scale_y_continuous(limits=c(pdata[,min(py)]*.85,pdata[,max(py)]*1.15)) + 
+  scale_y_continuous(limits=c(0,.4),labels=scales::percent) +
   geom_vline(data=pdata, aes(xintercept=46), size=.5, colour="black") +
   geom_vline(data=pdata, aes(xintercept=45), linetype="dashed", size=.5, colour="black") +
-  ggtitle(tlabel)
+  labs(title = tlabel, subtitle = slabel)
 print(plot2)
 
+#UNITED STATES
+#set labels
+xlabel <- "Week in Calendar Year"
+ylabel <- "WP Top Box Score"
+tlabel <- "United States: WP Top Box Score"
+slabel <- "*Note: weeks start on price-increase days"
+#set data and variables
+pdata <- wpag
+px <- wpag[, NEW_WEEK]
+py <- wpag[, Q2_8_TB_SCORE]
+groupvar <- wpag[, CAL_YR_NUM]
+#manual legend labels
+lname <- "Calendar Year"
+llabels <- c("2016","2017") 
+#line chart, factored by one variable
+plot3 <- ggplot() +
+  geom_line(data=pdata, aes(x=px, y=py, group=factor(groupvar), colour=factor(groupvar))) + 
+  xlab(xlabel) + ylab(ylabel) + theme_bw() +
+  scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
+  guides(colour = guide_legend(override.aes = list(size = 7))) + 
+  scale_y_continuous(limits=c(0,.4),labels=scales::percent) + 
+  geom_vline(data=pdata, aes(xintercept=46), size=.5, colour="black") +
+  geom_vline(data=pdata, aes(xintercept=45), linetype="dashed", size=.5, colour="black") +
+  labs(title = tlabel, subtitle = slabel)
+print(plot3)
 
-
+#NYC, SEATTLE, AND UNITED STATES - 2017
+#set labels
+xlabel <- "Week in Calendar Year"
+ylabel <- "WP Top Box Score"
+tlabel <- "NYC, Seattle, and United States: WP Top Box Score"
+slabel <- "*Note: weeks start on price-increase days"
+#set data and variables
+pdata <- totalag[CAL_YR_NUM==2017]
+px <- totalag[CAL_YR_NUM==2017, NEW_WEEK]
+py <- totalag[CAL_YR_NUM==2017, Q2_8_TB_SCORE]
+groupvar <- totalag[CAL_YR_NUM==2017, loc]
+#manual legend labels
+lname <- "Location"
+llabels <- c("NYC","Seattle","US") 
+#line chart, factored by one variable
+plot4 <- ggplot() +
+  geom_line(data=pdata, aes(x=px, y=py, group=factor(groupvar), colour=factor(groupvar))) + 
+  xlab(xlabel) + ylab(ylabel) + theme_bw() +
+  scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
+  guides(colour = guide_legend(override.aes = list(size = 7))) + 
+  scale_y_continuous(limits=c(0,.4),labels=scales::percent) + 
+  geom_vline(data=pdata, aes(xintercept=46), size=.5, colour="black") +
+  geom_vline(data=pdata, aes(xintercept=45), linetype="dashed", size=.5, colour="black") +
+  labs(title = tlabel, subtitle = slabel)
+print(plot4)
