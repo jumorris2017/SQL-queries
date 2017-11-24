@@ -1,4 +1,4 @@
-/* query 1 */
+/* query 1 -- CC by store, fiscal period, and drive-thru status */
 
 SELECT
       ce.STORE_NUM
@@ -54,7 +54,7 @@ GROUP BY
 ;
 
 
-/* query 2 */
+/* query 2  -- Canada stores, customer trans count, active store day count, COSD by store number & month */
 SELECT
       m.STORE_NUMBER
       ,to_char(m.BUSINESS_DATE,'MM') AS date_month
@@ -79,6 +79,7 @@ GROUP BY
     ,to_char(m.BUSINESS_DATE,'MM')
     ,to_char(m.BUSINESS_DATE,'YYYY') 
 ;
+
 
 
 
