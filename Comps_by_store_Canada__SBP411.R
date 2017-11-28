@@ -121,16 +121,16 @@ cc <- cc[, .(DAY_ABBR_NM,Q2_2_TB_SCORE,SO_TB_SCORE)]
 write.xlsx(cc,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_bydayofweek_Canada.xlsx")
 
 
-##slide #20 - CC and SO by day of week
+##slide #20 - CC and SO by hour
 cc <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_byhour_Canada.csv")
-cc[, SO_Total := rowSums(.SD, na.rm = TRUE), 
-   .SDcols = c("Q2_1_RESPONSE_TOTAL", "Q2_3_RESPONSE_TOTAL", "Q2_4_RESPONSE_TOTAL",
-               "Q2_5_RESPONSE_TOTAL", "Q2_6_RESPONSE_TOTAL", "Q2_7_RESPONSE_TOTAL")]
-cc[, SO_TB_CNT := rowSums(.SD, na.rm = TRUE), 
-   .SDcols = c("Q2_1_TB_CNT", "Q2_3_TB_CNT", "Q2_4_TB_CNT",
-               "Q2_5_TB_CNT", "Q2_6_TB_CNT", "Q2_7_TB_CNT")]
-cc[, SO_TB_SCORE := SO_TB_CNT/SO_Total]
-cc <- cc[, .(TRANS_HR,Q2_2_TB_SCORE,SO_TB_SCORE)]
+#change CC and SO columns to numeric
+cols <- c("Q2_1_TB_SCORE","CC_TB_SCORE","Q2_3_TB_SCORE","Q2_4_TB_SCORE","Q2_5_TB_SCORE","Q2_6_TB_SCORE","Q2_7_TB_SCORE")
+cc[, (cols) := lapply(.SD, as.numeric), .SDcols = cols]
+#compute SO score
+cc[, SO_TB_SCORE := rowMeans(.SD, na.rm = T), .SDcols=c("Q2_1_TB_SCORE","Q2_3_TB_SCORE","Q2_4_TB_SCORE",
+                                                 "Q2_5_TB_SCORE","Q2_6_TB_SCORE","Q2_7_TB_SCORE")]
+
+cc <- cc[, .(TRANS_HR,CC_TB_SCORE,SO_TB_SCORE)]
 cc <- setorder(cc, TRANS_HR)
 #write file
 write.xlsx(cc,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_byhour_Canada.xlsx")
@@ -138,29 +138,53 @@ write.xlsx(cc,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_byhour_Canada.xls
 
 ##slide #5 - CC, SO, Q1, and WP by store performance
 cc <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_bystoreperformance_Canada.csv")
-cc[, SO_Total := rowSums(.SD, na.rm = TRUE), 
-   .SDcols = c("Q2_1_RESPONSE_TOTAL", "Q2_3_RESPONSE_TOTAL", "Q2_4_RESPONSE_TOTAL",
-               "Q2_5_RESPONSE_TOTAL", "Q2_6_RESPONSE_TOTAL", "Q2_7_RESPONSE_TOTAL")]
-cc[, SO_TB_CNT := rowSums(.SD, na.rm = TRUE), 
-   .SDcols = c("Q2_1_TB_CNT", "Q2_3_TB_CNT", "Q2_4_TB_CNT",
-               "Q2_5_TB_CNT", "Q2_6_TB_CNT", "Q2_7_TB_CNT")]
-cc[, Q1_TDTMRW_SCORE := Q1_TDTMRW_CNT/Q1_RESPONSE_TOTAL]
-cc[, CC_TB_SCORE := Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL]
-cc[, SO_TB_SCORE := SO_TB_CNT/SO_Total]
-cc[, WP_TB_SCORE := Q2_8_TB_CNT/Q2_8_RESPONSE_TOTAL]
+cc1 <- copy(cc)
+#remove store number variable for topline
+cc1[, STORE_NUM := NULL]
+#sum - to get one row for the quarter
+cc1 <- cc1[, lapply(.SD, sum, na.rm=TRUE)]
+#will return
+cc1[, RETURN_TB_SCORE := Q1_TDTMRW_CNT/Q1_RESPONSE_TOTAL]
+#customer connection
+cc1[, CC_TB_SCORE := Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL]
+#worth perceptions
+cc1[, WP_TB_SCORE := Q2_8_TB_CNT/Q2_8_RESPONSE_TOTAL]
 #SO sub categories
-cc[, Q2_1_TB_SCORE := Q2_1_TB_CNT/Q2_1_RESPONSE_TOTAL]
-cc[, Q2_3_TB_SCORE := Q2_3_TB_CNT/Q2_3_RESPONSE_TOTAL]
-cc[, Q2_4_TB_SCORE := Q2_4_TB_CNT/Q2_4_RESPONSE_TOTAL]
-cc[, Q2_5_TB_SCORE := Q2_5_TB_CNT/Q2_5_RESPONSE_TOTAL]
-cc[, Q2_6_TB_SCORE := Q2_6_TB_CNT/Q2_6_RESPONSE_TOTAL]
-cc[, Q2_7_TB_SCORE := Q2_7_TB_CNT/Q2_7_RESPONSE_TOTAL]
-#drop old vars
-# dropcols <- grep("TB_CNT$|RESPONSE_TOTAL$", colnames(cc))
-# cc <- cc[, !dropcols, with=FALSE] #to drop
+cc1[, Q2_1_TB_SCORE := Q2_1_TB_CNT/Q2_1_RESPONSE_TOTAL]
+cc1[, Q2_3_TB_SCORE := Q2_3_TB_CNT/Q2_3_RESPONSE_TOTAL]
+cc1[, Q2_4_TB_SCORE := Q2_4_TB_CNT/Q2_4_RESPONSE_TOTAL]
+cc1[, Q2_5_TB_SCORE := Q2_5_TB_CNT/Q2_5_RESPONSE_TOTAL]
+cc1[, Q2_6_TB_SCORE := Q2_6_TB_CNT/Q2_6_RESPONSE_TOTAL]
+cc1[, Q2_7_TB_SCORE := Q2_7_TB_CNT/Q2_7_RESPONSE_TOTAL]
+#average the SO scores
+cc1[, SO_TB_SCORE := rowMeans(.SD, na.rm = TRUE),
+    .SDcols = c("Q2_1_TB_SCORE", "Q2_3_TB_SCORE", "Q2_4_TB_SCORE",
+                "Q2_5_TB_SCORE", "Q2_6_TB_SCORE", "Q2_7_TB_SCORE")]
+#keep only variables we need
+cc1 <- cc1[, (colnames(cc1[,-c(1:18)])), with=FALSE]
+
+#quantile stores
+cc2 <- copy(cc)
+#will return
+cc2[, RETURN_TB_SCORE := Q1_TDTMRW_CNT/Q1_RESPONSE_TOTAL]
+#customer connection
+cc2[, CC_TB_SCORE := Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL]
+#worth perceptions
+cc2[, WP_TB_SCORE := Q2_8_TB_CNT/Q2_8_RESPONSE_TOTAL]
+#SO sub categories
+cc2[, Q2_1_TB_SCORE := Q2_1_TB_CNT/Q2_1_RESPONSE_TOTAL]
+cc2[, Q2_3_TB_SCORE := Q2_3_TB_CNT/Q2_3_RESPONSE_TOTAL]
+cc2[, Q2_4_TB_SCORE := Q2_4_TB_CNT/Q2_4_RESPONSE_TOTAL]
+cc2[, Q2_5_TB_SCORE := Q2_5_TB_CNT/Q2_5_RESPONSE_TOTAL]
+cc2[, Q2_6_TB_SCORE := Q2_6_TB_CNT/Q2_6_RESPONSE_TOTAL]
+cc2[, Q2_7_TB_SCORE := Q2_7_TB_CNT/Q2_7_RESPONSE_TOTAL]
+#average the SO scores
+cc2[, SO_TB_SCORE := rowMeans(.SD, na.rm = TRUE),
+    .SDcols = c("Q2_1_TB_SCORE", "Q2_3_TB_SCORE", "Q2_4_TB_SCORE",
+                "Q2_5_TB_SCORE", "Q2_6_TB_SCORE", "Q2_7_TB_SCORE")]
 #
-ccquant <- cc[, list(Q1_10 = quantile(Q1_TDTMRW_SCORE,.1,na.rm=T),
-                    Q1_90 = quantile(Q1_TDTMRW_SCORE,.9,na.rm=T),
+ccquant <- cc2[, list(RETURN_10 = quantile(RETURN_TB_SCORE,.1,na.rm=T),
+                      RETURN_90 = quantile(RETURN_TB_SCORE,.9,na.rm=T),
                     CC_10 = quantile(CC_TB_SCORE,.1,na.rm=T),
                     CC_90 = quantile(CC_TB_SCORE,.9,na.rm=T),
                     SO_10 = quantile(SO_TB_SCORE,.1,na.rm=T),
@@ -180,33 +204,161 @@ ccquant <- cc[, list(Q1_10 = quantile(Q1_TDTMRW_SCORE,.1,na.rm=T),
                     Q2_7_10 = quantile(Q2_7_TB_SCORE,.1,na.rm=T),
                     Q2_7_90 = quantile(Q2_7_TB_SCORE,.9,na.rm=T))]
 #
-ccavg <- cc[, list(Q1_TDTMRW_SCORE = sum(Q1_TDTMRW_CNT)/sum(Q1_RESPONSE_TOTAL),
-                   CC_TB_SCORE = sum(Q2_2_TB_CNT)/sum(Q2_2_RESPONSE_TOTAL),
-                   SO_TB_SCORE = sum(SO_TB_CNT)/sum(SO_Total),
-                   WP_TB_SCORE = sum(Q2_8_TB_CNT)/sum(Q2_8_RESPONSE_TOTAL),
-                   Q2_1_TB_SCORE = sum(Q2_1_TB_CNT)/sum(Q2_1_RESPONSE_TOTAL),
-                   Q2_3_TB_SCORE = sum(Q2_3_TB_CNT)/sum(Q2_3_RESPONSE_TOTAL),
-                   Q2_4_TB_SCORE = sum(Q2_4_TB_CNT)/sum(Q2_4_RESPONSE_TOTAL),
-                   Q2_5_TB_SCORE = sum(Q2_5_TB_CNT)/sum(Q2_5_RESPONSE_TOTAL),
-                   Q2_6_TB_SCORE = sum(Q2_6_TB_CNT)/sum(Q2_6_RESPONSE_TOTAL),
-                   Q2_7_TB_SCORE = sum(Q2_7_TB_CNT)/sum(Q2_7_RESPONSE_TOTAL))]
+# ccavg <- cc2[, list(RETURN_TB_SCORE = sum(Q1_TDTMRW_CNT)/sum(Q1_RESPONSE_TOTAL),
+#                    CC_TB_SCORE = sum(Q2_2_TB_CNT)/sum(Q2_2_RESPONSE_TOTAL),
+#                    SO_TB_SCORE = sum(SO_TB_CNT)/sum(SO_Total),
+#                    WP_TB_SCORE = sum(Q2_8_TB_CNT)/sum(Q2_8_RESPONSE_TOTAL),
+#                    Q2_1_TB_SCORE = sum(Q2_1_TB_CNT)/sum(Q2_1_RESPONSE_TOTAL),
+#                    Q2_3_TB_SCORE = sum(Q2_3_TB_CNT)/sum(Q2_3_RESPONSE_TOTAL),
+#                    Q2_4_TB_SCORE = sum(Q2_4_TB_CNT)/sum(Q2_4_RESPONSE_TOTAL),
+#                    Q2_5_TB_SCORE = sum(Q2_5_TB_CNT)/sum(Q2_5_RESPONSE_TOTAL),
+#                    Q2_6_TB_SCORE = sum(Q2_6_TB_CNT)/sum(Q2_6_RESPONSE_TOTAL),
+#                    Q2_7_TB_SCORE = sum(Q2_7_TB_CNT)/sum(Q2_7_RESPONSE_TOTAL))]
 
-ccprint <- cbind(ccavg,ccquant)
+ccprint <- cbind(cc1,ccquant)
 ccprint <- ccprint[, lapply(.SD, function(x) round(x*100,0))]
 #write file
 write.xlsx(ccprint,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_bystoreperformance_Canada.xlsx")
 
 
 ##slide 8 - CC and SO by month
-cc <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_bymonth_Canada.csv")
+
+#fiscal month
+cc <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_byfiscalmonth_Canada.csv")
 #data are in long format (CAW...), so, tidy!
 #create new variable for CC vs. SO questions
+cc[, TB_Score := TOTAL_TB/TOTAL_RSPNS]
 cc[QSTN_ID=='Q2_2', varname := 'CC']
 cc[QSTN_ID=='Q2_1'|QSTN_ID=='Q2_3'|QSTN_ID=='Q2_4'|QSTN_ID=='Q2_5'|QSTN_ID=='Q2_6'|QSTN_ID=='Q2_7', varname := 'SO']
-cc <- cc[, lapply(.SD,sum,na.rm=T), .SDcols=c("TOTAL_TB","TOTAL_RSPNS"), by=c("CAL_YR_NUM","CAL_MNTH_IN_YR_NUM","varname")]
-cc[, TB_Score := TOTAL_TB/TOTAL_RSPNS]
+cc <- cc[, lapply(.SD,mean,na.rm=T), .SDcols=c("TB_Score"), by=c("FSCL_YR_NUM","FSCL_PER_IN_YR_NUM","varname")]
 #cast wide
-cc <- dcast.data.table(cc, CAL_YR_NUM + CAL_MNTH_IN_YR_NUM ~ varname, value.var="TB_Score")
-cc <- setorder(cc,CAL_YR_NUM,CAL_MNTH_IN_YR_NUM)
-cc <- cc[, lapply(.SD, function(x) round(x,3)), .SDcols=c("CC","SO"), by=c("CAL_YR_NUM","CAL_MNTH_IN_YR_NUM")]
+cc <- dcast.data.table(cc, FSCL_YR_NUM + FSCL_PER_IN_YR_NUM ~ varname, value.var="TB_Score")
+cc <- setorder(cc,FSCL_YR_NUM,FSCL_PER_IN_YR_NUM)
+cc <- cc[, lapply(.SD, function(x) round(x,3)), .SDcols=c("CC","SO"), by=c("FSCL_YR_NUM","FSCL_PER_IN_YR_NUM")]
+#write to .csv
+write.xlsx(cc,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_byfiscalmonth_Canada.xlsx")
+
+
+##slide #28 -- CC and SO by store volume
+
+#load data
+#part 1
+p1 <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_by_store_Canada_volume_type_pt1.csv")
+#part 2
+p2 <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_by_store_Canada_volume_type_pt2.csv")
+#rename merge id columns to match
+setnames(p1,"STORE_NUM","STORE_NUMBER")
+#change store number and TB scores to numeric from characters
+p1[, STORE_NUMBER := lapply(.SD, as.numeric), .SDcols = "STORE_NUMBER"]
+#[, (grep("TB_SCORE",names(p1),value=T)) := lapply(.SD, as.numeric), .SDcols=grep("TB_SCORE",names(p1),value=T)]
+#merge by store number
+pfull <- Reduce(function(x,y) {merge(x,y,by=c("STORE_NUMBER"),all.x=TRUE)}, list(p1,p2))
+#drop stores with no active days
+pfull <- na.omit(pfull, cols="COSD")
+#split by volume
+prob = c(1/4, 2/4, 3/4, 1)
+temp <- pfull %>% summarise( 
+  cosd25 = quantile(COSD, probs = prob[1], na.rm = T), 
+  cosd50 = quantile(COSD, probs = prob[2], na.rm = T),
+  cosd75 = quantile(COSD, probs = prob[3], na.rm = T),
+  cosd100 = quantile(COSD, probs = prob[4], na.rm = T)
+)
+pfull <- cbind(pfull, temp)
+#recode based on quartiles
+pfull[COSD <= cosd25, cosdquartile := 1]
+pfull[COSD > cosd25 & COSD <= cosd50, cosdquartile := 2]
+pfull[COSD > cosd50 & COSD <= cosd75, cosdquartile := 3]
+pfull[COSD > cosd75, cosdquartile := 4]
+#sum by cosdquartile
+pfull <- pfull[, lapply(.SD,sum,na.rm=T), by="cosdquartile"]
+pfull[, CC_TB_SCORE := Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL]
+pfull[, Q2_1_TB_SCORE := Q2_1_TB_CNT/Q2_1_RESPONSE_TOTAL]
+pfull[, Q2_3_TB_SCORE := Q2_3_TB_CNT/Q2_3_RESPONSE_TOTAL]
+pfull[, Q2_4_TB_SCORE := Q2_4_TB_CNT/Q2_4_RESPONSE_TOTAL]
+pfull[, Q2_5_TB_SCORE := Q2_5_TB_CNT/Q2_5_RESPONSE_TOTAL]
+pfull[, Q2_6_TB_SCORE := Q2_6_TB_CNT/Q2_6_RESPONSE_TOTAL]
+pfull[, Q2_7_TB_SCORE := Q2_7_TB_CNT/Q2_7_RESPONSE_TOTAL]
+pfull[, SO_TB_SCORE := rowMeans(.SD, na.rm = TRUE),
+    .SDcols = c("Q2_1_TB_SCORE", "Q2_3_TB_SCORE", "Q2_4_TB_SCORE",
+                "Q2_5_TB_SCORE", "Q2_6_TB_SCORE", "Q2_7_TB_SCORE")]
+cols <- c("cosdquartile","CC_TB_SCORE","SO_TB_SCORE")
+pfull <- pfull[, cols, with=FALSE]
+pfull <- setorder(pfull,cosdquartile)
+#write to .csv
+write.xlsx(pfull,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_by_store_Canada_volume.xlsx")
+
+
+#slide #31 - CE by channel
+ce <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/ce_by_channel_Canada.csv")
+ce <- ce[, list(TB_COUNT = sum(TB_COUNT,na.rm=T),
+                RSPNS_COUNT = sum(RSPNS_COUNT,na.rm=T)), by=c("QSTN_ID","ORD_MTHD_CD")]
+ce[, TB_SCORE := TB_COUNT/RSPNS_COUNT]
+#get rid of variables no longer needed
+ce[, c("TB_COUNT","RSPNS_COUNT") := NULL]
+#calculate SO total
+sosub <- ce[QSTN_ID!="Q2_2"]
+sosub <- sosub[, list(TB_SCORE = mean(TB_SCORE)), by="ORD_MTHD_CD"]
+#create a variable for merge
+sosub[, QSTN_ID := "StoreOps"]
+#rbind together
+l = list(ce,sosub)
+ce <- rbindlist(l, use.names=T, fill=F)
+ce <- setorder(ce,QSTN_ID,ORD_MTHD_CD)
+#write to .csv
+write.xlsx(ce,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/ce_by_channel_Canada.xlsx")
+
+#slide #32 - CE by company ownership
+ce <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/ce_by_ownership_Canada.csv")
+ce[, TB_SCORE := TOTAL_TB/TOTAL_RSPNS]
+ce[, c("FSCL_YR_NUM","FSCL_QTR_IN_YR_NUM") := NULL]
+ce <- setorder(ce, QSTN_ID,OWNR_TYPE_CD)
+#write to .csv
+write.xlsx(ce,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/ce_by_ownership_Canada.xlsx")
+
+#slide #15 - CC & SO by % store home store
+#quantile stores by % home store
+cc1 <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_by_homestore_Canada_pt1.csv")
+cc1 <- cc1[, list(HS_CUST_COUNT = sum(HS_CUST_COUNT,na.rm=T),
+                  ALL_CUST_COUNT = sum(ALL_CUST_COUNT,na.rm=T)), by="STORE_NUM"]
+#cc & so by store
+cc2 <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_by_store_Canada_volume_type_pt1.csv")
+cc2[, STORE_NUM := as.integer(STORE_NUM)]
+#merge by store number
+pfull <- Reduce(function(x,y) {merge(x,y,by=c("STORE_NUM"),all.y=TRUE)}, list(cc1,cc2))
+#calulate home store %
+pfull[, homestore_pct := HS_CUST_COUNT/ALL_CUST_COUNT]
+#split by home store %
+prob = c(1/4, 2/4, 3/4, 1)
+temp <- pfull %>% summarise( 
+  hs25 = quantile(homestore_pct, probs = prob[1], na.rm = T), 
+  hs50 = quantile(homestore_pct, probs = prob[2], na.rm = T),
+  hs75 = quantile(homestore_pct, probs = prob[3], na.rm = T),
+  hs100 = quantile(homestore_pct, probs = prob[4], na.rm = T)
+)
+pfull <- cbind(pfull, temp)
+#recode based on quartiles
+pfull[homestore_pct <= hs25, hsquartile := 1]
+pfull[homestore_pct > hs25 & homestore_pct <= hs50, hsquartile := 2]
+pfull[homestore_pct > hs50 & homestore_pct <= hs75, hsquartile := 3]
+pfull[homestore_pct > hs75, hsquartile := 4]
+#sum by hsquartile
+pfull <- pfull[, lapply(.SD,sum,na.rm=T), by="hsquartile"]
+pfull[, CC_TB_SCORE := Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL]
+pfull[, Q2_1_TB_SCORE := Q2_1_TB_CNT/Q2_1_RESPONSE_TOTAL]
+pfull[, Q2_3_TB_SCORE := Q2_3_TB_CNT/Q2_3_RESPONSE_TOTAL]
+pfull[, Q2_4_TB_SCORE := Q2_4_TB_CNT/Q2_4_RESPONSE_TOTAL]
+pfull[, Q2_5_TB_SCORE := Q2_5_TB_CNT/Q2_5_RESPONSE_TOTAL]
+pfull[, Q2_6_TB_SCORE := Q2_6_TB_CNT/Q2_6_RESPONSE_TOTAL]
+pfull[, Q2_7_TB_SCORE := Q2_7_TB_CNT/Q2_7_RESPONSE_TOTAL]
+pfull[, SO_TB_SCORE := rowMeans(.SD, na.rm = TRUE),
+      .SDcols = c("Q2_1_TB_SCORE", "Q2_3_TB_SCORE", "Q2_4_TB_SCORE",
+                  "Q2_5_TB_SCORE", "Q2_6_TB_SCORE", "Q2_7_TB_SCORE")]
+cols <- c("hsquartile","CC_TB_SCORE","SO_TB_SCORE")
+pfull <- pfull[, cols, with=FALSE]
+pfull <- setorder(pfull,hsquartile)
+#write to .csv
+write.xlsx(pfull,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_by_homestore_Canada.xlsx")
+
+
+
 
