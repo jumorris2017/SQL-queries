@@ -360,5 +360,43 @@ pfull <- setorder(pfull,hsquartile)
 write.xlsx(pfull,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_by_homestore_Canada.xlsx")
 
 
+## Slide #13 
+pt <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/partnertenure_by_store_Canada.csv")
+setnames(pt,c("STORE_NUM","avg_tenure"))
+cc <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_bystoreperformance_Canada.csv")
+cc <- cc[, lapply(.SD,sum,na.rm=T),by="STORE_NUM"]
+cc[, STORE_NUM := as.numeric(STORE_NUM)]
+pfull <- merge(pt,cc,by="STORE_NUM")
+#quartile partner tenure
+prob = c(1/4, 2/4, 3/4, 1)
+temp <- pfull %>% summarise( 
+  avg_tenure25 = quantile(avg_tenure, probs = prob[1], na.rm = T), 
+  avg_tenure50 = quantile(avg_tenure, probs = prob[2], na.rm = T),
+  avg_tenure75 = quantile(avg_tenure, probs = prob[3], na.rm = T),
+  avg_tenure100 = quantile(avg_tenure, probs = prob[4], na.rm = T)
+)
+pfull <- cbind(pfull, temp)
+#recode based on quartiles
+pfull[avg_tenure <= avg_tenure25, avg_tenurequartile := 1]
+pfull[avg_tenure > avg_tenure25 & avg_tenure <= avg_tenure50, avg_tenurequartile := 2]
+pfull[avg_tenure > avg_tenure50 & avg_tenure <= avg_tenure75, avg_tenurequartile := 3]
+pfull[avg_tenure > avg_tenure75, avg_tenurequartile := 4]
+#sum by avg_tenurequartile
+pfull <- pfull[, lapply(.SD,sum,na.rm=T), by="avg_tenurequartile"]
+pfull[, CC_TB_SCORE := Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL]
+#SO sub categories
+pfull[, Q2_1_TB_SCORE := Q2_1_TB_CNT/Q2_1_RESPONSE_TOTAL]
+pfull[, Q2_3_TB_SCORE := Q2_3_TB_CNT/Q2_3_RESPONSE_TOTAL]
+pfull[, Q2_4_TB_SCORE := Q2_4_TB_CNT/Q2_4_RESPONSE_TOTAL]
+pfull[, Q2_5_TB_SCORE := Q2_5_TB_CNT/Q2_5_RESPONSE_TOTAL]
+pfull[, Q2_6_TB_SCORE := Q2_6_TB_CNT/Q2_6_RESPONSE_TOTAL]
+pfull[, Q2_7_TB_SCORE := Q2_7_TB_CNT/Q2_7_RESPONSE_TOTAL]
+#average the SO scores
+pfull[, SO_TB_SCORE := rowMeans(.SD, na.rm = TRUE),
+    .SDcols = c("Q2_1_TB_SCORE", "Q2_3_TB_SCORE", "Q2_4_TB_SCORE",
+                "Q2_5_TB_SCORE", "Q2_6_TB_SCORE", "Q2_7_TB_SCORE")]
+pfull <- pfull[, c("avg_tenurequartile","SO_TB_SCORE","CC_TB_SCORE"), with=FALSE]
+#write to .csv
+write.xlsx(pfull,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/partnertenure_by_store_Canada.xlsx")
 
 
