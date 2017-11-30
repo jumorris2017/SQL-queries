@@ -7,6 +7,7 @@ library(data.table)
 library(xlsx)
 library(dplyr)
 library(ggplot2)
+library(flipRegression)
 #library(RColorBrewer)
 
 #load data
@@ -398,5 +399,47 @@ pfull[, SO_TB_SCORE := rowMeans(.SD, na.rm = TRUE),
 pfull <- pfull[, c("avg_tenurequartile","SO_TB_SCORE","CC_TB_SCORE"), with=FALSE]
 #write to .csv
 write.xlsx(pfull,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/partnertenure_by_store_Canada.xlsx")
+
+
+##recreating slide # 13 ##
+#regression (outcome = CC) based on % home store, average partner tenure, and COSD#
+#needs: store-level CC, % home store, partner tenure, COSD for FY 17 Q4#
+
+
+#cc & cosd
+#CC
+p1 <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_by_store_Canada_volume_type_pt1.csv")
+#COSD
+p2 <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_by_store_Canada_volume_type_pt2.csv")
+#rename merge id columns to match
+setnames(p2,"STORE_NUMBER","STORE_NUM")
+#change store number and TB scores to numeric from characters
+p1[, STORE_NUM := lapply(.SD, as.numeric), .SDcols = "STORE_NUM"]
+#% home store
+cc1 <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_by_homestore_Canada_pt1.csv")
+cc1 <- cc1[, list(HS_CUST_COUNT = sum(HS_CUST_COUNT,na.rm=T),
+                  ALL_CUST_COUNT = sum(ALL_CUST_COUNT,na.rm=T)), by="STORE_NUM"]
+#partner tenure
+pt <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/partnertenure_by_store_Canada.csv")
+setnames(pt,c("STORE_NUM","avg_tenure"))
+#merge by store number
+pfull <- Reduce(function(x,y) {merge(x,y,by=c("STORE_NUM"),all.x=TRUE)}, list(p1,p2,cc1,pt))
+
+#calculate CC tb score
+pfull[, cc_tb_score := Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL]
+#calulate home store %
+pfull[, homestore_pct := HS_CUST_COUNT/ALL_CUST_COUNT]
+#reduce number of variables
+pfull <- pfull[, c("STORE_NUM","cc_tb_score","homestore_pct","COSD","avg_tenure"), with=F]
+#regression model
+lm1 <- lm(cc_tb_score ~ homestore_pct + COSD + avg_tenure, data=pfull)
+# summary(lm1)
+# summary(lm(cc_tb_score ~ homestore_pct, data=pfull))
+# summary(lm(cc_tb_score ~ COSD, data=pfull))
+# summary(lm(cc_tb_score ~ avg_tenure, data=pfull))
+#relative weights analysis -- library(flipRegression)
+Regression(cc_tb_score ~ homestore_pct + COSD + avg_tenure, data=pfull,
+           output = "Relative Importance Analysis")
+
 
 

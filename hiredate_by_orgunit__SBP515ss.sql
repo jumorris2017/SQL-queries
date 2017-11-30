@@ -10,7 +10,7 @@ SELECT
   	LEFT JOIN [PDW_Bulk].[PRODW].[ORG_TREE_DRAD]  b
 		on a.Org_Unit = b.StoreOrgid
   WHERE a.Action_Group IN ('Hire', 'Rehire')
-    AND a.Fiscal_Year = 'FY-2017'
+    AND a.Fiscal_Year = 'FY-2018'
   GROUP BY a.Org_Unit, a.Action_Group, a.Fiscal_Month, a.Fiscal_Year, b.StoreAbbrev
   Order by a.Fiscal_Month, a.Fiscal_Year, a.Org_Unit, a.Action_Group
   
