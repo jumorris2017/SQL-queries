@@ -24,12 +24,30 @@ setnames(p,c("PersonnelNumber","survWeek","STORE_NUM_ASSIGNED"),c("pn","calweek"
 p <- na.omit(p, cols="store_num")
 
 #hire data
-h <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/hire-rehire_count_bystoreFY18.csv", colClasses=list(character=6))
-h[, store_num := as.numeric(StoreAbbrev)]
-h[, fiscalmonth := as.numeric(gsub('FP-2018-', '', Fiscal_Month))]
-h <- h[, c("store_num","fiscalmonth","tally"), with=F]
-h <- h[, list(tally = sum(tally,na.rm=T)), by=c("store_num","fiscalmonth")]
-h <- na.omit(h, cols="store_num")
+# h <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/hire-rehire_count_bystoreFY18.csv", colClasses=list(character=6))
+# h[, store_num := as.numeric(StoreAbbrev)]
+# h[, fiscalmonth := as.numeric(gsub('FP-2018-', '', Fiscal_Month))]
+# h <- h[, c("store_num","fiscalmonth","tally"), with=F]
+# h <- h[, list(tally = sum(tally,na.rm=T)), by=c("store_num","fiscalmonth")]
+# h <- na.omit(h, cols="store_num")
+hi <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/hiredate_by_storenumber.csv")
+setnames(hi,c("STORE_NUM","FSCL_WK_IN_YR_NUM"),c("store_num","fiscalweek"))
+hi <- hi[, c("newhires","store_num","fiscalweek"), with=F]
+
+#headcount data
+he <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/headcount_by_storenumber.csv")
+he1 <- he[FSCL_WK_IN_QTR_NUM==4]
+he1 <- rbind(he1,he1,he1,he1)
+fiscalweek <- rep(1:4, each=length(he1[,STORE_NUM]))
+he1 <- cbind(he1,fiscalweek)
+he2 <- he[FSCL_WK_IN_QTR_NUM==8]
+he2 <- rbind(he2,he2,he2,he2)
+fiscalweek <- rep(5:8, each=length(he2[,STORE_NUM]))
+he2 <- cbind(he2,fiscalweek)
+he <- rbind(he1,he2)
+he[, FSCL_WK_IN_QTR_NUM := NULL]
+setnames(he,"STORE_NUM","store_num")
+
 
 #organize pulse data
 temp1 <- p %>% 
@@ -49,6 +67,8 @@ pf <- dcast.data.table(pf, calweek + store_num ~ Question_ID, value.var=c("tbcou
 #merge
 full <- left_join(th, cc, by=c("store_num","fiscalweek"))
 full <- left_join(full, pf, by=c("store_num","calweek"))
+full <- left_join(full, hi, by=c("store_num","fiscalweek"))
+full <- left_join(full, he, by=c("store_num","fiscalweek"))
 setDT(full)
 #get rid of calweek
 full[, calweek := NULL]
@@ -65,6 +85,15 @@ fullwk <- fullwk[, lapply(.SD,sum,na.rm=T), by=c("fiscalweek")]
 fullwk <- setorder(fullwk,fiscalweek)
 fullwk[, thourslag := shift(thours, 1L, fill=NA, type="lag")]
 fullwk[fiscalweek>1, tdelta := thours - thourslag]
+
+#calculate training hours
+fullwk[, newhirehalf := newhires/2]
+fullwk[, newhirehalflag := shift(newhirehalf, 1L, fill=NA, type="lag")]
+fullwk[, newhiresplit := newhirehalf + newhirehalflag]
+fullwk[, newhirethours := newhiresplit * (19.5/2)]
+
+#create PPK measure (headcount*1 hour)
+fullwk[fiscalweek==4, ppkhours := AvgHeadcount*0.33]
 
 #cc top box
 fullwk[, ccscore := tbcount_cc / totalresp_cc]

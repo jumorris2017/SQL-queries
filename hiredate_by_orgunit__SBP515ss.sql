@@ -1,7 +1,7 @@
 /****** Script for SelectTopNRows command from SSMS  ******/
 SELECT 
-      a.[Fiscal_Month]
-    , a.[Fiscal_Year]
+      a.Fiscal_Month
+    , a.Fiscal_Year
 	  , a.Action_Group
 	  , a.Org_Unit
 	  , count(a.[Personnel Number]) as tally

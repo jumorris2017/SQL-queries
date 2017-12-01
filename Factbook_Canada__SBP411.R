@@ -8,7 +8,54 @@ library(xlsx)
 library(dplyr)
 library(ggplot2)
 library(flipRegression)
+library(lattice)
 #library(RColorBrewer)
+
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+  
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  
+  numPlots = length(plots)
+  
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+  
+  if (numPlots==1) {
+    print(plots[[1]])
+    
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
 
 #load data
 #part 1
@@ -430,7 +477,7 @@ pfull[, cc_tb_score := Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL]
 #calulate home store %
 pfull[, homestore_pct := HS_CUST_COUNT/ALL_CUST_COUNT]
 #reduce number of variables
-pfull <- pfull[, c("STORE_NUM","cc_tb_score","homestore_pct","COSD","avg_tenure"), with=F]
+pfull <- pfull[, c("STORE_NUM","cc_tb_score","homestore_pct","COSD","avg_tenure","Q2_2_TB_CNT","Q2_2_RESPONSE_TOTAL"), with=F]
 #regression model
 lm1 <- lm(cc_tb_score ~ homestore_pct + COSD + avg_tenure, data=pfull)
 # summary(lm1)
@@ -441,5 +488,91 @@ lm1 <- lm(cc_tb_score ~ homestore_pct + COSD + avg_tenure, data=pfull)
 Regression(cc_tb_score ~ homestore_pct + COSD + avg_tenure, data=pfull,
            output = "Relative Importance Analysis")
 
+summary(lm(cc_tb_score ~ homestore_pct*COSD + avg_tenure, data=pfull))
+summary(lm(cc_tb_score ~ homestore_pct + COSD*avg_tenure, data=pfull))
+summary(lm(cc_tb_score ~ homestore_pct*avg_tenure + COSD, data=pfull))
+summary(lm(cc_tb_score ~ homestore_pct*COSD*avg_tenure, data=pfull))
+
+pfull[, h_a_int := homestore_pct*avg_tenure]
+pfull[, h_a_c_int := homestore_pct*avg_tenure*COSD]
+Regression(cc_tb_score ~ homestore_pct + avg_tenure + COSD + h_a_int, data=pfull,
+           output = "Relative Importance Analysis")
+Regression(cc_tb_score ~ homestore_pct + avg_tenure + COSD + h_a_c_int, data=pfull,
+           output = "Relative Importance Analysis")
 
 
+#quartile everything
+pq <- copy(pfull)
+#quartile partner tenure
+prob = c(1/4, 2/4, 3/4, 1)
+temp <- pq %>% summarise( 
+  avg_tenure25 = quantile(avg_tenure, probs = prob[1], na.rm = T), 
+  avg_tenure50 = quantile(avg_tenure, probs = prob[2], na.rm = T),
+  avg_tenure75 = quantile(avg_tenure, probs = prob[3], na.rm = T),
+  avg_tenure100 = quantile(avg_tenure, probs = prob[4], na.rm = T)
+)
+pq <- cbind(pq, temp)
+#recode based on quartiles
+pq[avg_tenure <= avg_tenure25, avg_tenurequartile := 1]
+pq[avg_tenure > avg_tenure25 & avg_tenure <= avg_tenure50, avg_tenurequartile := 2]
+pq[avg_tenure > avg_tenure50 & avg_tenure <= avg_tenure75, avg_tenurequartile := 3]
+pq[avg_tenure > avg_tenure75, avg_tenurequartile := 4]
+#split by home store %
+prob = c(1/4, 2/4, 3/4, 1)
+temp <- pq %>% summarise( 
+  hs25 = quantile(homestore_pct, probs = prob[1], na.rm = T), 
+  hs50 = quantile(homestore_pct, probs = prob[2], na.rm = T),
+  hs75 = quantile(homestore_pct, probs = prob[3], na.rm = T),
+  hs100 = quantile(homestore_pct, probs = prob[4], na.rm = T)
+)
+pq <- cbind(pq, temp)
+#recode based on quartiles
+pq[homestore_pct <= hs25, hsquartile := 1]
+pq[homestore_pct > hs25 & homestore_pct <= hs50, hsquartile := 2]
+pq[homestore_pct > hs50 & homestore_pct <= hs75, hsquartile := 3]
+pq[homestore_pct > hs75, hsquartile := 4]
+#split by volume
+prob = c(1/4, 2/4, 3/4, 1)
+temp <- pq %>% summarise( 
+  cosd25 = quantile(COSD, probs = prob[1], na.rm = T), 
+  cosd50 = quantile(COSD, probs = prob[2], na.rm = T),
+  cosd75 = quantile(COSD, probs = prob[3], na.rm = T),
+  cosd100 = quantile(COSD, probs = prob[4], na.rm = T)
+)
+pq <- cbind(pq, temp)
+#recode based on quartiles
+pq[COSD <= cosd25, cosdquartile := 4]
+pq[COSD > cosd25 & COSD <= cosd50, cosdquartile := 3]
+pq[COSD > cosd50 & COSD <= cosd75, cosdquartile := 2]
+pq[COSD > cosd75, cosdquartile := 1]
+#sum by quartiles
+pq <- pq[, lapply(.SD,sum,na.rm=T), by=c("avg_tenurequartile","hsquartile","cosdquartile")]
+pq[, cc_tb_score := Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL]
+#reduce number of variables
+pq <- pq[, c("STORE_NUM","cc_tb_score","homestore_pct","COSD","avg_tenure","Q2_2_TB_CNT","Q2_2_RESPONSE_TOTAL",
+             "avg_tenurequartile","hsquartile","cosdquartile"), with=F]
+#make factorered group indicator
+pq[, group := as.factor(paste(avg_tenurequartile,hsquartile,cosdquartile,sep="-"))]#sum by group
+pq <- pq[, lapply(.SD,sum,na.rm=T), by=c("group")]
+pq[, cc_tb_score := Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL]
+pq <- setorder(pq,group)
+barchart(cc_tb_score~group,data=pq,ylim=c(.15,.45),scales = list(x = list(rot = 90)))
+
+# barchart(cc_tb_score~group,data=pq[hsquartile==1],ylim=c(.15,.45),scales = list(x = list(rot = 90)))
+# barchart(cc_tb_score~group,data=pq[hsquartile==2],ylim=c(.15,.45),scales = list(x = list(rot = 90)))
+# barchart(cc_tb_score~group,data=pq[hsquartile==3],ylim=c(.15,.45),scales = list(x = list(rot = 90)))
+# barchart(cc_tb_score~group,data=pq[hsquartile==4],ylim=c(.15,.45),scales = list(x = list(rot = 90)))
+
+plots <- list()  # new empty list
+for (i in 1:4) {
+  p1 = barchart(cc_tb_score~group,data=pq[hsquartile==i],ylim=c(.15,.45),scales = list(x = list(rot = 90)))
+  plots[[i]] <- p1  # add each plot into plot list
+}
+layout <- matrix(c(1, 2, 3, 4), nrow = 4, byrow = TRUE)
+multiplot(plotlist = plots, layout = layout)
+
+
+# barchart(cc_tb_score~group,data=pq[avg_tenurequartile==1],ylim=c(.15,.45))
+# barchart(cc_tb_score~group,data=pq[avg_tenurequartile==4],ylim=c(.15,.45))
+# barchart(cc_tb_score~group,data=pq[hsquartile==4],ylim=c(.15,.45))
+# barchart(cc_tb_score~group,data=pq[cosdquartile==4],ylim=c(.15,.45))
