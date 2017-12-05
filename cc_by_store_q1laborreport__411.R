@@ -3,7 +3,7 @@
 
 #load libraries
 library(data.table)
-library(plyr)
+#library(plyr)
 
 #load data
 #training hours
@@ -12,6 +12,23 @@ th <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/q1laborreport.csv")
 #setnames
 setnames(th,c("STORE_NUM","FISCAL_WEEK_NUMBER","QTD_ACTUAL_TRAINING"),
          c("store_num","fiscalweek","thours"))
+
+####holiday hours: CSV flat file from macro-enabled .xlsb (project folder)
+hol <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/q1laborreport_holiday.csv")
+#setnames
+setnames(hol,c("STORE_NUM","FSCL_WK_IN_YR_NUM","TOTAL_HRS"),
+         c("store_num","fiscalweek","holhours"))
+#subtract 1 week for holiday count, as they prep in advance
+hol[, fiscalweek := fiscalweek-1]
+#keep weeks 5 and 6 budget. agg together. split in half and parse between FW 4 & 5
+# hol <- hol[fiscalweek==5|fiscalweek==6]
+# hol <- hol[, list(holhours = sum(holhours,na.rm=T)), by="store_num"]
+# hol[, holhours := holhours/2]
+# hol <- rbind(hol,hol)
+# fwvec <- rep(4:5,each=length(unique(hol[,store_num])))
+# hol <- cbind(hol,fwvec)
+# setnames(hol,"fwvec","fiscalweek")
+
 #CC data
 cc <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_by_store_q1laborreport.csv")
 setnames(cc,c("STORE_NUM","FSCL_WK_IN_YR_NUM","CAL_WK_IN_YR_NUM","CCTOTALRESP","CCTBCOUNT"),
@@ -52,12 +69,12 @@ setnames(he,"STORE_NUM","store_num")
 #organize pulse data
 temp1 <- p %>% 
   group_by(calweek, Question_ID, store_num) %>%
-  summarise(totalresp = n())
+  dplyr::summarise(totalresp = n())
 setDT(temp1)
 temp2 <- p %>% 
   filter(RespID==7) %>%
   group_by(calweek, Question_ID, store_num) %>%
-  summarise(tbcount = n())
+  dplyr::summarise(tbcount = n())
 setDT(temp2)
 pf <- left_join(temp1,temp2,by=c("calweek","Question_ID","store_num"))
 setDT(pf)
@@ -69,6 +86,7 @@ full <- left_join(th, cc, by=c("store_num","fiscalweek"))
 full <- left_join(full, pf, by=c("store_num","calweek"))
 full <- left_join(full, hi, by=c("store_num","fiscalweek"))
 full <- left_join(full, he, by=c("store_num","fiscalweek"))
+full <- left_join(full, hol, by=c("store_num","fiscalweek"))
 setDT(full)
 #get rid of calweek
 full[, calweek := NULL]
@@ -92,8 +110,15 @@ fullwk[, newhirehalflag := shift(newhirehalf, 1L, fill=NA, type="lag")]
 fullwk[, newhiresplit := newhirehalf + newhirehalflag]
 fullwk[, newhirethours := newhiresplit * (19.5/2)]
 
-#create PPK measure (headcount*1 hour)
-fullwk[fiscalweek==4, ppkhours := AvgHeadcount*0.33]
+# #create PPK measure (headcount*1 hour)
+# fullwk[fiscalweek==4, ppkhours := AvgHeadcount*0.33]
+
+# #create updated total hour measure, which subtracts out holiday prep hours
+# fullwk[, thoursnohol := thours-holhours]
+# #create updated total hour measure, which subtracts out half of holiday prep hours
+# fullwk[, thourshalfhol := thours-(holhours/2)]
+# #create updated total hour measure, with updated holiday hour measure
+# fullwk[, thoursnohol_upd := thours-holhours]
 
 #cc top box
 fullwk[, ccscore := tbcount_cc / totalresp_cc]
@@ -125,21 +150,23 @@ py <- m[, tbscore]
 groupvar <- m[, question]
 #manual legend labels
 lname <- "Top Box Variable"
-llabels <- c("CC","Lived up to values","Connect with team","Supported","Feel proud",
+llabels <- c("Customer connection","Lived up to values","Connect with team","Supported","Feel proud",
              "Connect with customers","Reasonable demands") 
 xbreaks <- 8
 ybreaks <- 7
 #line chart, factored by one variable
 plot1 <- ggplot() +
-  geom_line(data=pdata, aes(x=px, y=py, group=factor(groupvar), colour=factor(groupvar))) + 
-  geom_line(data=m[question=="ccscore"], aes(x=m[question=="ccscore",fiscalweek], y=m[question=="ccscore",(thours+550000)/2200000])) +
+  geom_line(data=pdata, aes(x=px, y=py, group=factor(groupvar), colour=factor(groupvar), linetype=factor(groupvar))) + 
+  geom_line(data=m[question=="ccscore"], aes(x=m[question=="ccscore",fiscalweek], y=m[question=="ccscore",(thours+920000)/5500000])) +
   xlab(xlabel) + ylab(ylabel) + theme_bw() +
   scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
-  guides(colour = guide_legend(override.aes = list(size = 7))) + 
+  #scale_colour_discrete("") +
+  scale_linetype_manual(name=lname, labels=llabels, guide=guide_legend(order=1), values=c(5,1,1,1,1,1,1)) +
+  #guides(colour = guide_legend(override.aes = list(size = 7))) + 
   scale_x_continuous(limits=c(pdata[,min(px)],pdata[,max(px)]), breaks = scales::pretty_breaks(n = xbreaks)) +
   scale_y_continuous(limits=c(pdata[,min(py)*.85],pdata[,max(py)*1.1]),
                      breaks = scales::pretty_breaks(n = ybreaks), labels=scales::percent, "TB Score",
-                     sec.axis=sec_axis(~.*2200000 - 550000, 
+                     sec.axis=sec_axis(~.*5500000 - 920000, 
                      breaks = scales::pretty_breaks(n = ybreaks), labels=comma, name="Training Hours")) +
   labs(title = tlabel, subtitle = slabel)
 print(plot1)
@@ -147,4 +174,88 @@ print(plot1)
 ##observation 1: big spike in week 4 training hours == upcoming holiday launch
 ##observation 2: precipitous drop-off following week 5
 
+#melt for plotting
+n <- fullwk[, c("fiscalweek","thoursnohol",grep("score", names(fullwk), value=T)), with=F]
+n <- melt(n, id=c("fiscalweek","thoursnohol"), 
+          variable.name = "question", 
+          value.name = "tbscore", 
+          na.rm = T, #NA's removed from molten data when T
+          variable.factor = F) #turns variable into factor
 
+#plot trends
+#set labels
+xlabel <- "Fiscal Week (Q1 FY18)"
+ylabel <- "Top Box Scores"
+tlabel <- "Training Hours"
+slabel <- "Customer Connection & Pulse Scores"
+#set data and variables
+pdata <- n
+px <- n[, fiscalweek]
+py <- n[, tbscore]
+groupvar <- n[, question]
+#manual legend labels
+lname <- "Top Box Variable"
+llabels <- c("Customer connection","Lived up to values","Connect with team","Supported","Feel proud",
+             "Connect with customers","Reasonable demands") 
+xbreaks <- 8
+ybreaks <- 7
+#line chart, factored by one variable
+plot1 <- ggplot() +
+  geom_line(data=pdata, aes(x=px, y=py, group=factor(groupvar), colour=factor(groupvar), linetype=factor(groupvar))) + 
+  geom_line(data=n[question=="ccscore"], aes(x=n[question=="ccscore",fiscalweek], y=n[question=="ccscore",(thoursnohol+1155000)/5200000])) +
+  xlab(xlabel) + ylab(ylabel) + theme_bw() +
+  scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
+  #scale_colour_discrete("") +
+  scale_linetype_manual(name=lname, labels=llabels, guide=guide_legend(order=1), values=c(5,1,1,1,1,1,1)) +
+  #guides(colour = guide_legend(override.aes = list(size = 7))) + 
+  scale_x_continuous(limits=c(pdata[,min(px)],pdata[,max(px)]), breaks = scales::pretty_breaks(n = xbreaks)) +
+  scale_y_continuous(limits=c(pdata[,min(py)*.85],pdata[,max(py)*1.1]),
+                     breaks = scales::pretty_breaks(n = ybreaks), labels=scales::percent, "TB Score",
+                     sec.axis=sec_axis(~.*5200000 - 1155000, 
+                                       breaks = scales::pretty_breaks(n = ybreaks), labels=comma, name="Training Hours")) +
+  labs(title = tlabel, subtitle = slabel)
+print(plot1)
+
+
+#melt for plotting
+o <- fullwk[, c("fiscalweek","thours","holhours",grep("score", names(fullwk), value=T)), with=F]
+o <- melt(o, id=c("fiscalweek","thours","holhours"), 
+          variable.name = "question", 
+          value.name = "tbscore", 
+          na.rm = T, #NA's removed from molten data when T
+          variable.factor = F) #turns variable into factor
+
+#plot trends
+#set labels
+xlabel <- "Fiscal Week (Q1 FY18)"
+ylabel <- "Top Box Scores"
+tlabel <- "Training Hours - QTD Actual & Holiday Additional"
+slabel <- "Customer Connection & Pulse Scores"
+#set data and variables
+pdata <- o
+px <- o[, fiscalweek]
+py <- o[, tbscore]
+groupvar <- o[, question]
+#manual legend labels
+lname <- "Top Box Variable"
+llabels <- c("Customer connection","Lived up to values","Connect with team","Supported","Feel proud",
+             "Connect with customers","Reasonable demands") 
+xbreaks <- 8
+ybreaks <- 7
+#line chart, factored by one variable
+plot1 <- ggplot() +
+  geom_line(data=pdata, aes(x=px, y=py, group=factor(groupvar), colour=factor(groupvar), linetype=factor(groupvar))) + 
+  geom_line(data=o[question=="ccscore"], aes(x=o[question=="ccscore",fiscalweek], y=o[question=="ccscore",(thours+1300000)/6200000])) +
+  geom_point(data=o[question=="ccscore"], aes(x=o[question=="ccscore",fiscalweek], y=o[question=="ccscore",(holhours+1300000)/6200000])) +
+  xlab(xlabel) + ylab(ylabel) + theme_bw() +
+  scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
+  #scale_colour_discrete("") +
+  scale_linetype_manual(name=lname, labels=llabels, guide=guide_legend(order=1), values=c(5,1,1,1,1,1,1)) +
+  #guides(colour = guide_legend(override.aes = list(size = 7))) + 
+  scale_x_continuous(limits=c(pdata[,min(px)],pdata[,max(px)]), breaks = scales::pretty_breaks(n = xbreaks)) +
+  scale_y_continuous(limits=c(pdata[,min(py)*.75],pdata[,max(py)*1.15]),
+                     breaks = scales::pretty_breaks(n = ybreaks), labels=scales::percent, "TB Score",
+                     sec.axis=sec_axis(~.*6200000 - 1300000, 
+                                       breaks = scales::pretty_breaks(n = ybreaks), labels=comma, name="Training Hours")) +
+  labs(title = tlabel, subtitle = slabel)
+print(plot1)

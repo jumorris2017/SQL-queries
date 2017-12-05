@@ -1,0 +1,162 @@
+SELECT
+    c.CAL_DT AS caldate
+    ,c.DAY_IN_CAL_WK_NUM AS calday
+    ,c.HLDY_IND AS holidayflag
+    ,c.CAL_YR_NUM AS calyear
+    ,c.CAL_WK_IN_YR_NUM AS calweek
+    ,c.DAY_IN_CAL_YR_NUM AS caldayyear
+
+  -- Total valid response counts by question
+  --,COUNT(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.QSTN_ID END) AS Q2_2_Response_Total
+
+  -- Total top box responses
+  --,SUM(CASE WHEN ce.RSPNS_ID = '7' AND ce.QSTN_ID = 'Q2_2' THEN 1 ELSE 0 END) AS Q2_2_TB_Cnt
+
+  -- Compute top box scores for each question
+  ,CASE WHEN COUNT(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.QSTN_ID END) = 0 THEN NULL
+   ELSE TO_CHAR(SUM(CASE WHEN ce.RSPNS_ID = '7' AND ce.QSTN_ID = 'Q2_2' THEN 1 ELSE 0 END)
+    / COUNT(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.QSTN_ID END),'0.0000') END AS ccscore
+
+  -- Compute average scores for each question
+  --,TO_CHAR(AVG(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.RSPNS_ID END),'0.00') AS CC_Avg_Score
+
+FROM APPDWH.AFT_CV_SRVY_RSPNS ce
+
+  INNER JOIN APPDWH.ADT_CAL c
+    ON TRUNC(ce.TRANS_DTM) = c.CAL_DT
+      AND TRUNC(ce.TRANS_DTM) >= '01-JAN-15'
+      
+  INNER JOIN APPDWH.DDM_RETAIL_ORG_STORE_DIST org
+    ON ce.STORE_NUM = org.STORE_NUM
+      AND org.DIV_ORG_LVL_ID IN (3,6,106)  -- U.S. company stores only (including reserve bar), but excluding New Concepts and Roastery
+
+WHERE ce.RSPNS_ID <> '9'  -- rspns_id = 9 for unanswered questions
+  AND ce.QSTN_ID NOT IN ('Q1','Q11') -- these questions are not in Customer Connection or Store Operations scores
+
+GROUP BY
+    c.CAL_DT
+    ,c.DAY_IN_CAL_WK_NUM
+    ,c.HLDY_IND
+    ,c.CAL_YR_NUM
+    ,c.CAL_WK_IN_YR_NUM
+    ,c.DAY_IN_CAL_YR_NUM
+ORDER BY
+    c.CAL_DT
+;
+
+
+/* CAW */
+/* CC by % home store customers */
+
+SELECT
+   T3.STORE_NUM
+  ,T3.FSCL_YR_NUM
+  ,T3.FSCL_QTR_IN_YR_NUM
+  ,T3.FSCL_PER_CNT_NUM
+  ,SUM(CASE WHEN T2.HOME_STORE = T3.STORE_NUM THEN 1 
+       ELSE NULL 
+   END) AS HS_CUST_COUNT
+  ,COUNT(DISTINCT T2.GUID_ID) AS ALL_CUST_COUNT
+FROM(
+    --LIST OF ALL ACTIVE STORES AND GUIDS WHO VISITED THOSE STORES DURING THE GIVEN TIME PERIOD
+    SELECT
+       STR.STORE_NUM
+      ,ca.FSCL_YR_NUM
+      ,ca.FSCL_QTR_IN_YR_NUM
+      ,ca.FSCL_PER_CNT_NUM
+      ,POSH2.GUID_ID
+    FROM APPCA.F_POS_HDR POSH2
+    LEFT OUTER JOIN APPCA.D_STORE_VERS STR
+      ON POSH2.STORE_VERS_KEY = STR.STORE_VERS_KEY
+    INNER JOIN APPCA.D_CAL ca
+      ON POSH2.BUS_DT = ca.CAL_DT
+    WHERE STR.OWNR_TYPE_CD = 'CO'
+      AND STR.CNTRY_CD_2_DGT_ISO = 'US'
+      AND POSH2.GROSS_REV_LCL_AMT > 0
+       AND ca.FSCL_YR_NUM > 2014
+       --AND ca.FSCL_QTR_IN_YR_NUM = 4
+    
+    GROUP BY
+       STR.STORE_NUM
+      ,ca.FSCL_YR_NUM
+      ,ca.FSCL_QTR_IN_YR_NUM
+      ,ca.FSCL_PER_CNT_NUM
+      ,POSH2.GUID_ID
+    ) T3
+  --JOINING LIST OF GUIDS WHO WERE ACTIVE, THEIR HOMESTORE, TOTAL TRANSACTIONS AND SPEND AT ALL STORES
+  INNER JOIN (
+    SELECT
+       T1.GUID_ID
+      ,T1.FSCL_YR_NUM
+      ,T1.FSCL_QTR_IN_YR_NUM
+      ,T1.FSCL_PER_CNT_NUM
+      ,SUM(CASE WHEN T1.RNK_HS = 1 AND T1.N_TRANS>=3 
+         THEN T1.STORE_NUM 
+         ELSE NULL 
+       END) AS HOME_STORE
+      ,SUM(CASE WHEN T1.RNK_HS = 1 AND T1.N_TRANS>=3 
+         THEN T1.N_TRANS 
+         ELSE NULL 
+       END) AS HOME_STORE_VISITS
+      ,SUM(CASE WHEN T1.RNK_HS = 1 AND T1.N_TRANS>=3 
+         THEN T1.TOT_SPEND 
+         ELSE NULL 
+       END) AS HOME_STORE_SPEND
+      ,SUM(T1.N_TRANS) AS ALL_STORES_VISITS
+      ,SUM(T1.TOT_SPEND) AS ALL_STORES_SPEND
+    FROM(
+      --INNER QUERY - ALL GUIDS, STORES THEY VISITED, # TRANSACTIONS AT THOSE STORES AND TOTAL SPEND AT THOSE STORES
+      SELECT
+         POSH.GUID_ID
+        ,STR.STORE_NUM
+        ,ca.FSCL_YR_NUM
+        ,ca.FSCL_QTR_IN_YR_NUM
+        ,ca.FSCL_PER_CNT_NUM
+        ,COUNT(DISTINCT POSH.TRANS_ID) AS N_TRANS
+        ,SUM(POSH.GROSS_REV_LCL_AMT) AS TOT_SPEND
+        --this ranks each store that the guid has visited by the number of transactions and spend
+        ,RANK() OVER(PARTITION BY POSH.GUID_ID, ca.FSCL_PER_CNT_NUM 
+                  ORDER BY -COUNT(DISTINCT POSH.TRANS_ID), 
+                           -SUM(POSH.GROSS_REV_LCL_AMT)
+                  ) 
+         AS RNK_HS
+      FROM APPCA.F_POS_HDR POSH
+      LEFT OUTER JOIN APPCA.D_STORE_VERS STR
+        ON POSH.STORE_VERS_KEY = STR.STORE_VERS_KEY
+      INNER JOIN APPCA.D_CAL ca
+        ON POSH.BUS_DT = ca.CAL_DT
+      WHERE STR.OWNR_TYPE_CD = 'CO'
+        AND STR.CNTRY_CD_2_DGT_ISO = 'US'
+        AND POSH.GROSS_REV_LCL_AMT > 0
+       AND ca.FSCL_YR_NUM > 2015
+       --AND ca.FSCL_QTR_IN_YR_NUM = 4
+        
+      GROUP BY
+         POSH.GUID_ID
+        ,STR.STORE_NUM
+        ,ca.FSCL_YR_NUM
+        ,ca.FSCL_QTR_IN_YR_NUM
+        ,ca.FSCL_PER_CNT_NUM
+    ) T1 --THIS IS THE LIST OF GUIDS AND THEIR HOMESTORE,SPEND ETC
+    GROUP BY
+       T1.GUID_ID
+      ,T1.FSCL_YR_NUM
+      ,T1.FSCL_QTR_IN_YR_NUM
+      ,T1.FSCL_PER_CNT_NUM
+  ) T2 --THIS IS THE LIST OF ALL STORES AND THEIR CUSTOMERS
+ON T2.GUID_ID = T3.GUID_ID
+  AND T2.FSCL_PER_CNT_NUM = T3.FSCL_PER_CNT_NUM
+
+WHERE T2.GUID_ID IS NOT NULL 
+  AND T3.GUID_ID IS NOT NULL 
+  AND T2.GUID_ID !='0' 
+  AND T3.GUID_ID !='0' 
+
+GROUP BY
+   T3.STORE_NUM
+  ,T3.FSCL_YR_NUM
+  ,T3.FSCL_QTR_IN_YR_NUM
+  ,T3.FSCL_PER_CNT_NUM
+;
+
+

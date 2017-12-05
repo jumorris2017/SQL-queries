@@ -4,7 +4,7 @@ SELECT
   --Period_Name
   FSCL_QTR_IN_YR_NUM
   ,FSCL_WK_IN_QTR_NUM
-  ,AVG(Avg_Headcount_Period) AS 'Avg1'
+  ,AVG(Avg_Headcount_Period) AS 'AvgHeadcount'
   --,COUNT(DISTINCT STORE_NUM) AS 'Store_Cnt'
   ,STORE_NUM
 FROM (

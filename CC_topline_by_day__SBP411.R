@@ -59,4 +59,34 @@ fore <- forecast(fit, h = 60)
 ## plot it
 plot(fore)
 
+#create dataset for prophet
+pcc <- copy(cc)
+setnames(pcc,c("caldate","ccscore"),c("ds","y"))
+
+pcchol <- copy(cc)
+pcchol <- pcchol[, c("caldate","holiday")]
+setnames(pcchol,c("caldate"),c("ds"))
+pcchol[, holiday := as.character(holiday)]
+
+#prophet forecast model
+pr <- prophet(pcc, growth="linear", daily.seasonality=TRUE, weekly.seasonality=TRUE, holidays=pcchol)
+#dataframe returned from mode
+fcst <- predict(pr,pcc)
+#plot model
+prophet_plot_components(pr, fcst, uncertainty = TRUE, plot_cap = TRUE,
+                        weekly_start = 0, yearly_start = 0)
+#predict forward
+future <- make_future_dataframe(pr, periods = 365)
+forecast <- predict(pr, future)
+plot(pr, forecast, xlab="Calendar Date", ylab="Customer Connection")
+#sample from posterior preditive distribution
+predictive_samples(pr, pcc)
+
+
+
+
+
+
+
+
 
