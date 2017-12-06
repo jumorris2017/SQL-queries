@@ -4,6 +4,7 @@ GO
 SELECT --TOP 100
   COUNT(m.Personnel_Number) AS newhires
   --,m.Move_Date
+  ,m.New_Job_Key
   ,m.FSCL_YR_NUM
   ,m.FSCL_WK_IN_YR_NUM
   ,m.Move_Type
@@ -39,16 +40,17 @@ LEFT JOIN PRODM.Movements_Tenure_Detail mt
   ON m.Move_Date = mt.Move_Date
     AND m.Personnel_Number = mt.Personnel_Number
 */
-WHERE m.New_Job_Key = '50000362'
+WHERE (m.New_Job_Key = '50000362' OR m.New_Job_Key = '50000358')  -- barista (50000362), shift (50000358), SM (50000117), ASM SM (50000118)
   AND m.FSCL_YR_NUM = 2018
-  AND m.Move_Type = 1  -- external hires
+  AND (m.Move_Type = 1 or m.Move_Type = 2)  -- external hires (1)
  
 GROUP BY
 APPDWH.ADT_STORE.STORE_NUM
 --,m.Move_Date
+,m.New_Job_Key
 ,m.FSCL_YR_NUM
 ,m.FSCL_WK_IN_YR_NUM
 ,m.Move_Type
 ORDER BY
-m.Move_Type
+m.New_Job_Key
 

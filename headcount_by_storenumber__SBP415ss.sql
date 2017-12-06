@@ -2,17 +2,18 @@
 
 SELECT
   --Period_Name
-  FSCL_QTR_IN_YR_NUM
-  ,FSCL_WK_IN_QTR_NUM
+  --FSCL_QTR_IN_YR_NUM
+  FSCL_WK_IN_QTR_NUM
   ,AVG(Avg_Headcount_Period) AS 'AvgHeadcount'
   --,COUNT(DISTINCT STORE_NUM) AS 'Store_Cnt'
   ,STORE_NUM
+  ,Job_Key
 FROM (
 SELECT
    --Job_Key
   --,Period_Name
   c.FSCL_WK_IN_QTR_NUM
-  ,c.FSCL_QTR_IN_YR_NUM
+  --,c.FSCL_QTR_IN_YR_NUM
   ,s.STORE_NUM
   --,Partner_Headcount_Period
   --,Org_Days_In_Period
@@ -21,6 +22,7 @@ SELECT
   --,Turnover_Period
   --,Term_Rate_Period
   --,SOP_Headcount
+  ,ojm.Job_Key
 FROM PDW_Bulk.PRODM.Org_Job_Measures ojm
 
 INNER JOIN PDW_Bulk.PRODM.Stores_by_Org sbo
@@ -37,21 +39,21 @@ INNER JOIN PDW_Bulk.PRODW.Calendar c
     AND ojm.Period_Name = c.FSCL_PER_IN_YR_CD
     AND c.FSCL_YR_NUM = 2018
     AND c.FSCL_QTR_IN_YR_NUM = 1
-    AND c.FSCL_WK_IN_QTR_NUM BETWEEN 1 AND 8
+    --AND c.FSCL_WK_IN_QTR_NUM BETWEEN 1 AND 8
     
 WHERE ojm.Period_Type = 'FM'
-  AND ojm.Job_Key = '50000362'  -- barista only
+  AND (ojm.Job_Key = '50000362' OR ojm.Job_Key = '50000358' OR ojm.Job_Key = '50000117' OR ojm.Job_Key = '50000118')  -- barista (50000362), shift (50000358), SM (50000117), ASM SM (50000118)
   AND ojm.Org_Days_In_Period > 0
   AND ojm.Partner_Headcount_Period > 0
 ) a
 
 GROUP BY
   -- Period_Name
-  FSCL_QTR_IN_YR_NUM
-  ,FSCL_WK_IN_QTR_NUM
+  --FSCL_QTR_IN_YR_NUM
+  FSCL_WK_IN_QTR_NUM
   ,STORE_NUM
+  ,Job_Key
 ORDER BY
-  FSCL_QTR_IN_YR_NUM
-  ,FSCL_WK_IN_QTR_NUM
+  FSCL_WK_IN_QTR_NUM
   ,STORE_NUM
 

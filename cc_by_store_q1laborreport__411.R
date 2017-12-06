@@ -12,22 +12,27 @@ th <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/q1laborreport.csv")
 #setnames
 setnames(th,c("STORE_NUM","FISCAL_WEEK_NUMBER","QTD_ACTUAL_TRAINING"),
          c("store_num","fiscalweek","thours"))
+#aggregate by fiscal week to get a sense of the number of additional hours
+tempth <- th[, list(thours = round(sum(thours,na.rm=T),0)), by="fiscalweek"]
 
-####holiday hours: CSV flat file from macro-enabled .xlsb (project folder)
-hol <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/q1laborreport_holiday.csv")
-#setnames
-setnames(hol,c("STORE_NUM","FSCL_WK_IN_YR_NUM","TOTAL_HRS"),
-         c("store_num","fiscalweek","holhours"))
-#subtract 1 week for holiday count, as they prep in advance
-hol[, fiscalweek := fiscalweek-1]
-#keep weeks 5 and 6 budget. agg together. split in half and parse between FW 4 & 5
-# hol <- hol[fiscalweek==5|fiscalweek==6]
-# hol <- hol[, list(holhours = sum(holhours,na.rm=T)), by="store_num"]
-# hol[, holhours := holhours/2]
-# hol <- rbind(hol,hol)
-# fwvec <- rep(4:5,each=length(unique(hol[,store_num])))
-# hol <- cbind(hol,fwvec)
-# setnames(hol,"fwvec","fiscalweek")
+# ####holiday hours: CSV flat file from macro-enabled .xlsb (project folder)
+# hol <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/q1laborreport_holiday.csv")
+# #setnames
+# setnames(hol,c("STORE_NUM","FSCL_WK_IN_YR_NUM","TOTAL_HRS"),
+#          c("store_num","fiscalweek","holhours"))
+# #aggregate by fiscal week to get a sense of the number of additional hours
+# temphol <- hol[, list(holhours = round(sum(holhours,na.rm=T),0)), by="fiscalweek"]
+# #subtract 1 week for holiday count, as they prep in advance
+# hol[, fiscalweek := fiscalweek-1]
+# #keep weeks 5 and 6 budget. agg together. split in half and parse between FW 4 & 5
+# # hol <- hol[fiscalweek==5|fiscalweek==6]
+# # hol <- hol[, list(holhours = sum(holhours,na.rm=T)), by="store_num"]
+# # hol[, holhours := holhours/2]
+# # hol <- rbind(hol,hol)
+# # fwvec <- rep(4:5,each=length(unique(hol[,store_num])))
+# # hol <- cbind(hol,fwvec)
+# # setnames(hol,"fwvec","fiscalweek")
+
 
 #CC data
 cc <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_by_store_q1laborreport.csv")
@@ -49,22 +54,41 @@ p <- na.omit(p, cols="store_num")
 # h <- na.omit(h, cols="store_num")
 hi <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/hiredate_by_storenumber.csv")
 setnames(hi,c("STORE_NUM","FSCL_WK_IN_YR_NUM"),c("store_num","fiscalweek"))
-hi <- hi[, c("newhires","store_num","fiscalweek"), with=F]
+#keep new baristas and promoted shifts
+hi <- hi[(New_Job_Key==50000362&Move_Type==1)|(New_Job_Key==50000358&Move_Type==2)]
+hi <- hi[, c("newhires","store_num","fiscalweek","New_Job_Key"), with=F]
+#swing wide
+hi <- dcast.data.table(hi, store_num + fiscalweek ~ New_Job_Key, value.var="newhires")
+setnames(hi, c("50000362","50000358"),c("nh_bar","nh_shift"))
+hi[is.na(hi)] <- 0
 
 #headcount data
 he <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/headcount_by_storenumber.csv")
+#period 1
 he1 <- he[FSCL_WK_IN_QTR_NUM==4]
 he1 <- rbind(he1,he1,he1,he1)
 fiscalweek <- rep(1:4, each=length(he1[,STORE_NUM]))
 he1 <- cbind(he1,fiscalweek)
+#period 2
 he2 <- he[FSCL_WK_IN_QTR_NUM==8]
 he2 <- rbind(he2,he2,he2,he2)
 fiscalweek <- rep(5:8, each=length(he2[,STORE_NUM]))
 he2 <- cbind(he2,fiscalweek)
-he <- rbind(he1,he2)
-he[, FSCL_WK_IN_QTR_NUM := NULL]
-setnames(he,"STORE_NUM","store_num")
-
+#period 3
+he3 <- he[FSCL_WK_IN_QTR_NUM==13]
+he3 <- rbind(he3,he3,he3,he3,he3)
+fiscalweek <- rep(9:13, each=length(he3[,STORE_NUM]))
+he3 <- cbind(he3,fiscalweek)
+#bind together
+he <- rbind(he1,he2,he3)
+he[, FSCL_WK_IN_QTR_NUM := NULL] #remove old week variable
+setnames(he,"STORE_NUM","store_num") #rename for merging
+#average by fiscal week and job code
+he <- he[, list(AvgHeadcount = mean(AvgHeadcount,na.rm=T)), by=c("store_num","fiscalweek","Job_Key")]
+#swing wide
+he <- dcast.data.table(he, store_num + fiscalweek ~ Job_Key, value.var="AvgHeadcount")
+setnames(he, c("50000362","50000358","50000117","50000118"),c("hcnt_bar","hcnt_shift","hcnt_sm","hcnt_asm"))
+he[is.na(he)] <- 0
 
 #organize pulse data
 temp1 <- p %>% 
@@ -81,15 +105,17 @@ setDT(pf)
 pf[is.na(pf[,tbcount]), tbcount := 0]
 pf <- dcast.data.table(pf, calweek + store_num ~ Question_ID, value.var=c("tbcount","totalresp"))
 
-#merge
-full <- left_join(th, cc, by=c("store_num","fiscalweek"))
-full <- left_join(full, pf, by=c("store_num","calweek"))
-full <- left_join(full, hi, by=c("store_num","fiscalweek"))
-full <- left_join(full, he, by=c("store_num","fiscalweek"))
-full <- left_join(full, hol, by=c("store_num","fiscalweek"))
-setDT(full)
-#get rid of calweek
-full[, calweek := NULL]
+#joins
+#get rid of calendar week
+pfcc <- merge(cc,pf, by=c("store_num","calweek"), all=FALSE)
+pfcc[, calweek := NULL]
+pfcc <- pfcc[, lapply(.SD,sum,na.rm=T), by=c("store_num","fiscalweek")]
+#join together
+full <- merge(th, pfcc, by=c("store_num","fiscalweek"), all=FALSE)
+full <- merge(full, hi, by=c("store_num","fiscalweek"), all.x=T)
+full <- merge(full, he, by=c("store_num","fiscalweek"), all.x=T)
+# full <- merge(full, hol, by=c("store_num","fiscalweek"), all.x=T)
+#aggregate
 full <- full[, lapply(.SD,sum,na.rm=T), by=c("store_num","fiscalweek")]
 
 # #create delta variable
@@ -104,17 +130,28 @@ fullwk <- setorder(fullwk,fiscalweek)
 fullwk[, thourslag := shift(thours, 1L, fill=NA, type="lag")]
 fullwk[fiscalweek>1, tdelta := thours - thourslag]
 
+#calculate average headcount by adding together headcount of different roles
+fullwk[, AvgHeadcount := rowSums(.SD,na.rm=T), by=c("hcnt_bar","hcnt_shift","hcnt_sm","hcnt_asm")]
+
 #calculate training hours
-fullwk[, newhirehalf := newhires/2]
-fullwk[, newhirehalflag := shift(newhirehalf, 1L, fill=NA, type="lag")]
-fullwk[, newhiresplit := newhirehalf + newhirehalflag]
-fullwk[, newhirethours := newhiresplit * (19.5/2)]
+# fullwk[, newhirehalf := newhires/2]
+# fullwk[, newhirehalflag := shift(newhirehalf, 1L, fill=NA, type="lag")]
+# fullwk[, newhiresplit := ifelse(is.na(newhirehalflag),newhirehalf,newhirehalf+newhirehalflag)]
+# fullwk[, newhirethours := newhiresplit * (19.5/2)]
+fullwk[, newbaristathours := nh_bar * ((19.5 + 12.5 + 3.25))] #need to split into two weeks
+fullwk[, proshiftthours := nh_shift * ((10.5 + 6.5))] #need to split into two weeks
+fullwk[, safetytraining := AvgHeadcount * .25]
+fullwk[, newsafethours := rowSums(.SD,na.rm=T), .SDcols=c("newbaristathours", "proshiftthours","safetytraining")]
 
 # #create PPK measure (headcount*1 hour)
 # fullwk[fiscalweek==4, ppkhours := AvgHeadcount*0.33]
+# create PPK measure based on Tea's values 
+fullwk[fiscalweek==4, ppkhours := AvgHeadcount*(1.25/2)]
+fullwk[fiscalweek==5, ppkhours := AvgHeadcount*(0.75/2)]
 
-# #create updated total hour measure, which subtracts out holiday prep hours
+#create updated total hour measure, which subtracts out holiday prep hours
 # fullwk[, thoursnohol := thours-holhours]
+fullwk[, thoursnoppk := ifelse(is.na(ppkhours),thours,thours-ppkhours)]
 # #create updated total hour measure, which subtracts out half of holiday prep hours
 # fullwk[, thourshalfhol := thours-(holhours/2)]
 # #create updated total hour measure, with updated holiday hour measure
@@ -155,21 +192,25 @@ llabels <- c("Customer connection","Lived up to values","Connect with team","Sup
 xbreaks <- 8
 ybreaks <- 7
 #line chart, factored by one variable
-plot1 <- ggplot() +
+plot1a <- ggplot() +
   geom_line(data=pdata, aes(x=px, y=py, group=factor(groupvar), colour=factor(groupvar), linetype=factor(groupvar))) + 
-  geom_line(data=m[question=="ccscore"], aes(x=m[question=="ccscore",fiscalweek], y=m[question=="ccscore",(thours+920000)/5500000])) +
   xlab(xlabel) + ylab(ylabel) + theme_bw() +
   scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
-  #scale_colour_discrete("") +
   scale_linetype_manual(name=lname, labels=llabels, guide=guide_legend(order=1), values=c(5,1,1,1,1,1,1)) +
-  #guides(colour = guide_legend(override.aes = list(size = 7))) + 
   scale_x_continuous(limits=c(pdata[,min(px)],pdata[,max(px)]), breaks = scales::pretty_breaks(n = xbreaks)) +
-  scale_y_continuous(limits=c(pdata[,min(py)*.85],pdata[,max(py)*1.1]),
-                     breaks = scales::pretty_breaks(n = ybreaks), labels=scales::percent, "TB Score",
-                     sec.axis=sec_axis(~.*5500000 - 920000, 
-                     breaks = scales::pretty_breaks(n = ybreaks), labels=comma, name="Training Hours")) +
   labs(title = tlabel, subtitle = slabel)
-print(plot1)
+print(plot1a)
+plot1b <- ggplot() +
+  geom_line(data=m[question=="ccscore"], aes(x=m[question=="ccscore",fiscalweek], y=m[question=="ccscore",thours])) +
+  xlab(xlabel) + ylab(ylabel) + theme_bw() +
+  scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
+  scale_y_continuous(limits=c(m[question=="ccscore",min(thours)*.75],m[question=="ccscore",max(thours)*1.15]),
+                     breaks = scales::pretty_breaks(n = ybreaks), labels=comma, name="Training Hours") +
+  labs(title = tlabel, subtitle = slabel)
+print(plot1b)
+
+
+
 
 ##observation 1: big spike in week 4 training hours == upcoming holiday launch
 ##observation 2: precipitous drop-off following week 5
@@ -186,7 +227,7 @@ n <- melt(n, id=c("fiscalweek","thoursnohol"),
 #set labels
 xlabel <- "Fiscal Week (Q1 FY18)"
 ylabel <- "Top Box Scores"
-tlabel <- "Training Hours"
+tlabel <- "Training Hours - with Holiday Additional Hours Removed"
 slabel <- "Customer Connection & Pulse Scores"
 #set data and variables
 pdata <- n
@@ -199,27 +240,35 @@ llabels <- c("Customer connection","Lived up to values","Connect with team","Sup
              "Connect with customers","Reasonable demands") 
 xbreaks <- 8
 ybreaks <- 7
-#line chart, factored by one variable
-plot1 <- ggplot() +
-  geom_line(data=pdata, aes(x=px, y=py, group=factor(groupvar), colour=factor(groupvar), linetype=factor(groupvar))) + 
-  geom_line(data=n[question=="ccscore"], aes(x=n[question=="ccscore",fiscalweek], y=n[question=="ccscore",(thoursnohol+1155000)/5200000])) +
+# #line chart, factored by one variable
+# plot2 <- ggplot() +
+#   geom_line(data=pdata, aes(x=px, y=py, group=factor(groupvar), colour=factor(groupvar), linetype=factor(groupvar))) + 
+#   geom_line(data=n[question=="ccscore"], aes(x=n[question=="ccscore",fiscalweek], y=n[question=="ccscore",(thoursnohol+1155000)/5200000])) +
+#   xlab(xlabel) + ylab(ylabel) + theme_bw() +
+#   scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
+#   #scale_colour_discrete("") +
+#   scale_linetype_manual(name=lname, labels=llabels, guide=guide_legend(order=1), values=c(5,1,1,1,1,1,1)) +
+#   #guides(colour = guide_legend(override.aes = list(size = 7))) + 
+#   scale_x_continuous(limits=c(pdata[,min(px)],pdata[,max(px)]), breaks = scales::pretty_breaks(n = xbreaks)) +
+#   scale_y_continuous(limits=c(pdata[,min(py)*.75],pdata[,max(py)*1.15]),
+#                      breaks = scales::pretty_breaks(n = ybreaks), labels=scales::percent, "TB Score",
+#                      sec.axis=sec_axis(~.*5200000 - 1155000, 
+#                                        breaks = scales::pretty_breaks(n = ybreaks), labels=comma, name="Training Hours")) +
+#   labs(title = tlabel, subtitle = slabel)
+# print(plot2)
+plot2b <- ggplot() +
+  geom_line(data=n[question=="ccscore"], aes(x=n[question=="ccscore",fiscalweek], y=n[question=="ccscore",thoursnohol])) +
   xlab(xlabel) + ylab(ylabel) + theme_bw() +
   scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
-  #scale_colour_discrete("") +
-  scale_linetype_manual(name=lname, labels=llabels, guide=guide_legend(order=1), values=c(5,1,1,1,1,1,1)) +
-  #guides(colour = guide_legend(override.aes = list(size = 7))) + 
-  scale_x_continuous(limits=c(pdata[,min(px)],pdata[,max(px)]), breaks = scales::pretty_breaks(n = xbreaks)) +
-  scale_y_continuous(limits=c(pdata[,min(py)*.85],pdata[,max(py)*1.1]),
-                     breaks = scales::pretty_breaks(n = ybreaks), labels=scales::percent, "TB Score",
-                     sec.axis=sec_axis(~.*5200000 - 1155000, 
-                                       breaks = scales::pretty_breaks(n = ybreaks), labels=comma, name="Training Hours")) +
+  scale_y_continuous(limits=c(n[question=="ccscore",min(thoursnohol)*.75],n[question=="ccscore",max(thoursnohol)*1.15]),
+                     breaks = scales::pretty_breaks(n = ybreaks), labels=comma, name="Training Hours") +
   labs(title = tlabel, subtitle = slabel)
-print(plot1)
+print(plot2b)
 
 
 #melt for plotting
-o <- fullwk[, c("fiscalweek","thours","holhours",grep("score", names(fullwk), value=T)), with=F]
-o <- melt(o, id=c("fiscalweek","thours","holhours"), 
+o <- fullwk[, c("fiscalweek","thours","ppkhours","thoursnoppk","newsafethours",grep("score", names(fullwk), value=T)), with=F]
+o <- melt(o, id=c("fiscalweek","thours","ppkhours","thoursnoppk","newsafethours"), 
           variable.name = "question", 
           value.name = "tbscore", 
           na.rm = T, #NA's removed from molten data when T
@@ -229,8 +278,8 @@ o <- melt(o, id=c("fiscalweek","thours","holhours"),
 #set labels
 xlabel <- "Fiscal Week (Q1 FY18)"
 ylabel <- "Top Box Scores"
-tlabel <- "Training Hours - QTD Actual & Holiday Additional"
-slabel <- "Customer Connection & Pulse Scores"
+tlabel <- "Training hours, customer connection & pulse scores"
+slabel <- "QTD actual (black line), actual minus holiday [JM calc] (red line), \nnew hire and safety training hours [JM calc] (blue line)"
 #set data and variables
 pdata <- o
 px <- o[, fiscalweek]
@@ -243,19 +292,28 @@ llabels <- c("Customer connection","Lived up to values","Connect with team","Sup
 xbreaks <- 8
 ybreaks <- 7
 #line chart, factored by one variable
-plot1 <- ggplot() +
-  geom_line(data=pdata, aes(x=px, y=py, group=factor(groupvar), colour=factor(groupvar), linetype=factor(groupvar))) + 
-  geom_line(data=o[question=="ccscore"], aes(x=o[question=="ccscore",fiscalweek], y=o[question=="ccscore",(thours+1300000)/6200000])) +
-  geom_point(data=o[question=="ccscore"], aes(x=o[question=="ccscore",fiscalweek], y=o[question=="ccscore",(holhours+1300000)/6200000])) +
+plot3 <- ggplot() +
+  geom_line(data=pdata, aes(x=px, y=py, group=factor(groupvar), colour=factor(groupvar), linetype=factor(groupvar))) +
+  geom_line(data=o[question=="ccscore"], aes(x=o[question=="ccscore",fiscalweek], y=o[question=="ccscore",(thours+130000)/650000])) +
+  geom_line(data=o[question=="ccscore"&fiscalweek>=3&fiscalweek<=6], aes(x=o[question=="ccscore"&fiscalweek>=3&fiscalweek<=6,fiscalweek], y=o[question=="ccscore"&fiscalweek>=3&fiscalweek<=6,(thoursnoppk+130000)/650000]),color='red') +
+  geom_line(data=o[question=="ccscore"], aes(x=o[question=="ccscore",fiscalweek], y=o[question=="ccscore",(newsafethours+130000)/650000]),color='blue') +
+  #geom_point(data=o[question=="ccscore"&ppkhours>0], aes(x=o[question=="ccscore"&ppkhours>0,fiscalweek], y=o[question=="ccscore"&ppkhours>0,(ppkhours+130000)/650000]),color='red') +
   xlab(xlabel) + ylab(ylabel) + theme_bw() +
   scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
-  #scale_colour_discrete("") +
   scale_linetype_manual(name=lname, labels=llabels, guide=guide_legend(order=1), values=c(5,1,1,1,1,1,1)) +
-  #guides(colour = guide_legend(override.aes = list(size = 7))) + 
   scale_x_continuous(limits=c(pdata[,min(px)],pdata[,max(px)]), breaks = scales::pretty_breaks(n = xbreaks)) +
-  scale_y_continuous(limits=c(pdata[,min(py)*.75],pdata[,max(py)*1.15]),
+  scale_y_continuous(limits=c(pdata[,min(py)*.65],pdata[,max(py)*1.25]),
                      breaks = scales::pretty_breaks(n = ybreaks), labels=scales::percent, "TB Score",
-                     sec.axis=sec_axis(~.*6200000 - 1300000, 
+                     sec.axis=sec_axis(~.*650000 - 130000, 
                                        breaks = scales::pretty_breaks(n = ybreaks), labels=comma, name="Training Hours")) +
   labs(title = tlabel, subtitle = slabel)
-print(plot1)
+print(plot3)
+
+# #merge together
+# tempthhol <- left_join(tempth,temphol,by="fiscalweek")
+# setDT(tempthhol)
+# tempthhol[, thoursnohol := ifelse(is.na(holhours),thours,thours-holhours)]
+# temphol2 <- temphol[, fiscalweek := fiscalweek-1]
+# tempthhol2 <- left_join(tempth,temphol2,by="fiscalweek")
+# setDT(tempthhol2)
+# tempthhol2[, thoursnohol := ifelse(is.na(holhours),thours,thours-holhours)]
