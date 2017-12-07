@@ -1,4 +1,4 @@
-##request: CC and SO pre- and post- holiday launch for Lisa request 11/15/17
+##request: CC and SO pre- and post- holiday launch for Lisa request 12/5/17
 
 #load libraries
 library(data.table)

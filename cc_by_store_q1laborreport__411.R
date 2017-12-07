@@ -3,7 +3,7 @@
 
 #load libraries
 library(data.table)
-#library(plyr)
+library(dplyr)
 
 #load data
 #training hours
@@ -122,6 +122,40 @@ full <- full[, lapply(.SD,sum,na.rm=T), by=c("store_num","fiscalweek")]
 # full <- setorder(full,store_num,fiscalweek)
 # #this basic shift takes previous store value - *not* necessarily the previous week
 # full[, thourslag := shift(thours, 1L, fill=NA, type="lag"), by="store_num"]
+
+## 12/6/17 interjection ##
+
+
+#generate variable for total hours per hourly worker (shift + barista)
+full[, thoursphp := thours/(hcnt_shift+hcnt_bar)]
+
+#compare week 8 to average of weeks 1-3
+full[fiscalweek==8, fywk8 := 1]
+full[fiscalweek>=1&fiscalweek<=3, fywk8 := 0]
+full <- full[fywk8==0|fywk8==1]
+full[, fiscalweek := NULL]
+
+#aggregate
+full <- full[, lapply(.SD,mean,na.rm=T), .SDcols=c("thours","hcnt_shift","hcnt_bar","thoursphp"), by=c("store_num","fywk8")]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #aggregate up to get topline
 fullwk <- full[, store_num := NULL]
