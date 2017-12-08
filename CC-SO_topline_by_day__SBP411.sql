@@ -1,9 +1,9 @@
 SELECT
     c.CAL_DT AS cal_date
-    ,c.DAY_IN_CAL_WK_NUM AS cal_day
-    ,c.HLDY_IND AS holiday
+    ,c.DAY_ABBR_NM
     ,c.CAL_YR_NUM AS cal_year
-    ,c.CAL_WK_IN_YR_NUM AS cal_week
+    --,c.CAL_WK_IN_YR_NUM AS cal_week
+    ,c.DAY_IN_CAL_YR_NUM AS cal_day
 
   -- Total valid response counts by question
   ,COUNT(CASE WHEN ce.QSTN_ID = 'Q2_1' THEN ce.QSTN_ID END) AS Q2_1_Response_Total
@@ -53,20 +53,13 @@ SELECT
     / COUNT(CASE WHEN ce.QSTN_ID = 'Q2_7' THEN ce.QSTN_ID END),'0.0000') END
    AS Q2_7_TB_Score
 
-  -- Compute average scores for each question
-  ,TO_CHAR(AVG(CASE WHEN ce.QSTN_ID = 'Q2_1' THEN ce.RSPNS_ID END),'0.00') AS Q2_1_Avg_Score
-  ,TO_CHAR(AVG(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.RSPNS_ID END),'0.00') AS Q2_2_Avg_Score
-  ,TO_CHAR(AVG(CASE WHEN ce.QSTN_ID = 'Q2_3' THEN ce.RSPNS_ID END),'0.00') AS Q2_3_Avg_Score
-  ,TO_CHAR(AVG(CASE WHEN ce.QSTN_ID = 'Q2_4' THEN ce.RSPNS_ID END),'0.00') AS Q2_4_Avg_Score
-  ,TO_CHAR(AVG(CASE WHEN ce.QSTN_ID = 'Q2_5' THEN ce.RSPNS_ID END),'0.00') AS Q2_5_Avg_Score
-  ,TO_CHAR(AVG(CASE WHEN ce.QSTN_ID = 'Q2_6' THEN ce.RSPNS_ID END),'0.00') AS Q2_6_Avg_Score
-  ,TO_CHAR(AVG(CASE WHEN ce.QSTN_ID = 'Q2_7' THEN ce.RSPNS_ID END),'0.00') AS Q2_7_Avg_Score
-
 FROM APPDWH.AFT_CV_SRVY_RSPNS ce
 
   INNER JOIN APPDWH.ADT_CAL c
     ON TRUNC(ce.TRANS_DTM) = c.CAL_DT
-      AND TRUNC(ce.TRANS_DTM) >= '01-JAN-15'
+      --AND TRUNC(ce.TRANS_DTM) >= '01-OCT-15'
+    AND c.CAL_WK_IN_YR_NUM >= 43
+    AND c.CAL_YR_NUM >= 2015
       
   INNER JOIN APPDWH.DDM_RETAIL_ORG_STORE_DIST org
     ON ce.STORE_NUM = org.STORE_NUM
@@ -77,10 +70,9 @@ WHERE ce.RSPNS_ID <> '9'  -- rspns_id = 9 for unanswered questions
 
 GROUP BY
     c.CAL_DT
-    ,c.DAY_IN_CAL_WK_NUM
-    ,c.HLDY_IND
+    ,c.DAY_IN_CAL_YR_NUM
+    ,c.DAY_ABBR_NM
     ,c.CAL_YR_NUM
-    ,c.CAL_WK_IN_YR_NUM
 ORDER BY
     c.CAL_DT
 ;

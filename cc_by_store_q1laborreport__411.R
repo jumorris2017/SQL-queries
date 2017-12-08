@@ -4,6 +4,9 @@
 #load libraries
 library(data.table)
 library(dplyr)
+library(Hmisc)
+library(ggplot2)
+library(PerformanceAnalytics)
 
 #load data
 #training hours
@@ -90,6 +93,10 @@ he <- dcast.data.table(he, store_num + fiscalweek ~ Job_Key, value.var="AvgHeadc
 setnames(he, c("50000362","50000358","50000117","50000118"),c("hcnt_bar","hcnt_shift","hcnt_sm","hcnt_asm"))
 he[is.na(he)] <- 0
 
+#comp data
+comp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/q1laborreport_comp.csv")
+setnames(comp,c("STORE_NUMBER","FISCAL_WEEK_NUMBER"),c("store_num","fiscalweek"))
+
 #organize pulse data
 temp1 <- p %>% 
   group_by(calweek, Question_ID, store_num) %>%
@@ -114,6 +121,7 @@ pfcc <- pfcc[, lapply(.SD,sum,na.rm=T), by=c("store_num","fiscalweek")]
 full <- merge(th, pfcc, by=c("store_num","fiscalweek"), all=FALSE)
 full <- merge(full, hi, by=c("store_num","fiscalweek"), all.x=T)
 full <- merge(full, he, by=c("store_num","fiscalweek"), all.x=T)
+full <- merge(full, comp, by=c("store_num","fiscalweek"), all.x=T)
 # full <- merge(full, hol, by=c("store_num","fiscalweek"), all.x=T)
 #aggregate
 full <- full[, lapply(.SD,sum,na.rm=T), by=c("store_num","fiscalweek")]
@@ -125,7 +133,6 @@ full <- full[, lapply(.SD,sum,na.rm=T), by=c("store_num","fiscalweek")]
 
 ## 12/6/17 interjection ##
 
-
 #generate variable for total hours per hourly worker (shift + barista)
 full[, thoursphp := thours/(hcnt_shift+hcnt_bar)]
 
@@ -135,27 +142,295 @@ full[fiscalweek>=1&fiscalweek<=3, fywk8 := 0]
 full <- full[fywk8==0|fywk8==1]
 full[, fiscalweek := NULL]
 
+#calculate weekly cc by store
+full[, cc_score := tbcount_cc/totalresp_cc]
+#calculate weekly pulse scores by store
+full[, q1_score := tbcount_Q1/totalresp_Q1]
+full[, q2a_score := tbcount_Q2_A/totalresp_Q2_A]
+#full[, q2b_score := tbcount_Q2_B/totalresp_Q2_B]
+full[, q2c_score := tbcount_Q2_C/totalresp_Q2_C]
+full[, q2d_score := tbcount_Q2_D/totalresp_Q2_D]
+#full[, q2e_score := tbcount_Q2_E/totalresp_Q2_E]
+#calculate comps
+full[, salescomp := round((MonthlySales-LYMonthlySales)/LYMonthlySales,4)]
+
 #aggregate
-full <- full[, lapply(.SD,mean,na.rm=T), .SDcols=c("thours","hcnt_shift","hcnt_bar","thoursphp"), by=c("store_num","fywk8")]
+# full <- full[, lapply(.SD,mean,na.rm=T), .SDcols=c("thours","hcnt_shift","hcnt_bar","thoursphp",grep("score",colnames(full),value=T)), by=c("store_num","fywk8")]
+full <- full[, list(thours = mean(thours,na.rm=T),
+                    hcnt_shift = mean(hcnt_shift,na.rm=T),
+                    hcnt_bar = mean(hcnt_bar,na.rm=T),
+                    thoursphp = mean(thoursphp,na.rm=T),
+                    cc_score = mean(cc_score,na.rm=T),
+                    q1_score = mean(q1_score,na.rm=T),
+                    q2a_score = mean(q2a_score,na.rm=T),
+                    q2c_score = mean(q2c_score,na.rm=T),
+                    q2d_score = mean(q2d_score,na.rm=T),
+                    totalresp_cc = sum(totalresp_cc,na.rm=T),
+                    totalresp_Q1 = sum(totalresp_Q1,na.rm=T),
+                    totalresp_Q2_A = sum(totalresp_Q2_A,na.rm=T),
+                    totalresp_Q2_C = sum(totalresp_Q2_C,na.rm=T),
+                    totalresp_Q2_D = sum(totalresp_Q2_D,na.rm=T),
+                    MonthlySales = sum(MonthlySales,na.rm=T),
+                    LYMonthlySales = sum(LYMonthlySales,na.rm=T),
+                    salescomp = mean(salescomp,na.rm=T)), by=c("store_num","fywk8")]
+
+#create headcount var
+full[, hcnt_shiftbar := rowSums(.SD,na.rm=T), .SDcols=c("hcnt_shift","hcnt_bar")]
+
+#swing wide
+fullw <- dcast.data.table(full, store_num ~ fywk8, value.var=c("thours","thoursphp","hcnt_shiftbar",grep("score",colnames(full),value=T),grep("totalresp",colnames(full),value=T),grep("Monthly",colnames(full),value=T)))
+#drop rows without both timepoints for hours and CC
+fullw <- na.omit(fullw,cols=c("thours_0","thours_1","cc_score_0","cc_score_1"))
+#round
+fullw[, (colnames(fullw)[2:9]) := lapply(.SD, function(x) round(x,2)), .SDcols=colnames(fullw)[2:9]]
+#make delta between time periods
+fullw[, thours_delta := thours_1-thours_0]
+fullw[, thoursphp_delta := thoursphp_1-thoursphp_0]
+fullw[, cc_delta := cc_score_1-cc_score_0]
+is.na(fullw) <- sapply(fullw, is.infinite)
+#summarize min, max, median and mean
+#
+### MINIMUM VALUES ###
+#
+fullw[, lapply(.SD,min,na.rm=T), .SDcols=colnames(fullw)[2:ncol(fullw)]]
+### MAXIMUM VALUES ###
+#
+fullw[, lapply(.SD,max,na.rm=T), .SDcols=colnames(fullw)[2:ncol(fullw)]]
+#
+### MEDIAN VALUES ###
+#
+fullw[, lapply(.SD,median,na.rm=T), .SDcols=colnames(fullw)[2:ncol(fullw)]]
+#
+### MEAN VALUES ###
+#
+fullw[, lapply(.SD,mean,na.rm=T), .SDcols=colnames(fullw)[2:ncol(fullw)]]
+
+# #correlated CC delta and training hour per hourly partner delta
+# cor(fullw[,thoursphp_delta],fullw[,cc_delta])
+# rcorr(fullw[,thoursphp_delta],fullw[,cc_delta],type="pearson")
+# 
+# ## correlation matrix with p-values
+# cor.prob <- function (X, dfr = nrow(X) - 2) {
+#   R <- cor(X, use="pairwise.complete.obs")
+#   above <- row(R) < col(R)
+#   r2 <- R[above]^2
+#   Fstat <- r2 * dfr/(1 - r2)
+#   R[above] <- 1 - pf(Fstat, 1, dfr)
+#   R[row(R) == col(R)] <- NA
+#   R
+# }
+# ## create function to dump the cor.prob output to a 4 column matrix
+# ## with row/column indices, correlation, and p-value.
+# flattenSquareMatrix <- function(m) {
+#   if( (class(m) != "matrix") | (nrow(m) != ncol(m))) stop("Must be a square matrix.") 
+#   if(!identical(rownames(m), colnames(m))) stop("Row and column names must be equal.")
+#   ut <- upper.tri(m)
+#   data.frame(i = rownames(m)[row(m)[ut]],
+#              j = rownames(m)[col(m)[ut]],
+#              cor=t(m)[ut],
+#              p=m[ut])
+# }
+# #flatten the table
+# flattenSquareMatrix(cor.prob(fullw[,2:ncol(fullw)]))
+# #plot the data
+# chart.Correlation(fullw[,2:ncol(fullw)])
 
 
+#split by training hours avg weeks 1-3
+prob = c(.1,.9)
+temp <- fullw %>% summarise( 
+  th0_10 = quantile(thours_0, probs = prob[1], na.rm = T), 
+  th0_90 = quantile(thours_0, probs = prob[2], na.rm = T)
+)
+fullw <- cbind(fullw, temp)
+#recode based on quartiles
+fullw[thours_0 <= th0_10, th0_qtile := 1]
+fullw[thours_0 > th0_10 & thours_0 < th0_90, th0_qtile := 2]
+fullw[thours_0 >= th0_90, th0_qtile := 3]
+
+#split by training hours week 8
+prob = c(.1,.9)
+temp <- fullw %>% summarise( 
+  th1_10 = quantile(thours_1, probs = prob[1], na.rm = T), 
+  th1_90 = quantile(thours_1, probs = prob[2], na.rm = T)
+)
+fullw <- cbind(fullw, temp)
+#recode based on quartiles
+fullw[thours_1 <= th1_10, th1_qtile := 1]
+fullw[thours_1 > th1_10 & thours_1 < th1_90, th1_qtile := 2]
+fullw[thours_1 >= th1_90, th1_qtile := 3]
+
+#split by training hours per partner avg weeks 1-3
+prob = c(.1,.9)
+temp <- fullw %>% summarise( 
+  thphp0_10 = quantile(thoursphp_0, probs = prob[1], na.rm = T), 
+  thphp0_90 = quantile(thoursphp_0, probs = prob[2], na.rm = T)
+)
+fullw <- cbind(fullw, temp)
+#recode based on quartiles
+fullw[thoursphp_0 <= thphp0_10, thphp0_qtile := 1]
+fullw[thoursphp_0 > thphp0_10 & thoursphp_0 < thphp0_90, thphp0_qtile := 2]
+fullw[thoursphp_0 >= thphp0_90, thphp0_qtile := 3]
+
+#split by training hours per partner week 8
+prob = c(.1,.9)
+temp <- fullw %>% summarise( 
+  thphp1_10 = quantile(thoursphp_1, probs = prob[1], na.rm = T), 
+  thphp1_90 = quantile(thoursphp_1, probs = prob[2], na.rm = T)
+)
+fullw <- cbind(fullw, temp)
+#recode based on quartiles
+fullw[thoursphp_1 <= thphp1_10, thphp1_qtile := 1]
+fullw[thoursphp_1 > thphp1_10 & thoursphp_1 < thphp1_90, thphp1_qtile := 2]
+fullw[thoursphp_1 >= thphp1_90, thphp1_qtile := 3]
+
+#split by training hours delta
+prob = c(.1,.9)
+temp <- fullw %>% summarise( 
+  thdelta_10 = quantile(thours_delta, probs = prob[1], na.rm = T), 
+  thdelta_90 = quantile(thours_delta, probs = prob[2], na.rm = T)
+)
+fullw <- cbind(fullw, temp)
+#recode based on quartiles
+fullw[thours_delta <= thdelta_10, thdelta_qtile := 1]
+fullw[thours_delta > thdelta_10 & thours_delta < thdelta_90, thdelta_qtile := 2]
+fullw[thours_delta >= thdelta_90, thdelta_qtile := 3]
+
+#split by training hours per partner delta
+prob = c(.1,.9)
+temp <- fullw %>% summarise( 
+  thphpdelta10 = quantile(thoursphp_delta, probs = prob[1], na.rm = T), 
+  thphpdelta90 = quantile(thoursphp_delta, probs = prob[2], na.rm = T)
+)
+fullw <- cbind(fullw, temp)
+#recode based on quartiles
+fullw[thoursphp_delta <= thphpdelta10, thphpdelta_qtile := 1]
+fullw[thoursphp_delta > thphpdelta10 & thoursphp_delta < thphpdelta90, thphpdelta_qtile := 2]
+fullw[thoursphp_delta >= thphpdelta90, thphpdelta_qtile := 3]
+
+# #look at over-spenders in both time periods
+# temp <- fullw[, c(colnames(fullw)[1:5],"hcnt_shiftbar_1",grep("qtile",colnames(fullw),value=T)[1:4]),with=F]
+# temp <- temp[thphp0_qtile==3&thphp1_qtile==3]
+# temp <- setorder(temp,-thoursphp_1)
+
+#split dataset by thoursphp_delta (neg, pos)
+fullw[thoursphp_delta<0, thoursphp_delta_grp := "Hours - down"] #negative
+fullw[thoursphp_delta==0, thoursphp_delta_grp := "Hours - same"] #zero
+fullw[thoursphp_delta>0, thoursphp_delta_grp := "Hours - up"] #positive
+
+#split dataset by thours_delta (neg, pos)
+fullw[thours_delta<0, thours_delta_grp := "Hours - down"] #negative
+fullw[thours_delta==0, thours_delta_grp := "Hours - same"] #zero
+fullw[thours_delta>0, thours_delta_grp := "Hours - up"] #positive
+
+#correlate CC delta and training hour php delta, by positive vs negative thphp delta
+rcorr(fullw[thoursphp_delta_grp=="Hours - down",thoursphp_delta],fullw[thoursphp_delta_grp==1,cc_delta],type="pearson")
+rcorr(fullw[thoursphp_delta_grp=="Hours - up",thoursphp_delta],fullw[thoursphp_delta_grp==3,cc_delta],type="pearson")
+
+#correlate CC score and training hour php delta, by positive vs negative thphp delta
+rcorr(fullw[thoursphp_delta_grp=="Hours - down",thoursphp_delta],fullw[thoursphp_delta_grp==1,cc_score_1],type="pearson")
+rcorr(fullw[thoursphp_delta_grp=="Hours - up",thoursphp_delta],fullw[thoursphp_delta_grp==3,cc_score_1],type="pearson")
+
+#correlate CC score and training hour php, by positive vs negative thphp delta
+rcorr(fullw[thoursphp_delta_grp=="Hours - down",thoursphp_1],fullw[thoursphp_delta_grp==1,cc_score_1],type="pearson")
+rcorr(fullw[thoursphp_delta_grp=="Hours - up",thoursphp_1],fullw[thoursphp_delta_grp==3,cc_score_1],type="pearson")
+
+#aggregate to get average CC score by th_php group
+#means
+tempa <- fullw[, c("thoursphp_delta_grp",grep("score",colnames(fullw),value=T)), with=F]
+tempa <- tempa[, lapply(.SD,function(x) round(mean(x,na.rm=T),4)*100), .SDcols=colnames(tempa)[2:ncol(tempa)], by="thoursphp_delta_grp"]
+#sums
+tempb <- fullw[, c("thoursphp_delta_grp",grep("totalresp",colnames(fullw),value=T),grep("Monthly",colnames(fullw),value=T)), with=F]
+tempb <- tempb[, lapply(.SD,sum,na.rm=T), .SDcols=colnames(tempb)[2:ncol(tempb)], by="thoursphp_delta_grp"]
+#join together
+temp <- left_join(tempa,tempb,by="thoursphp_delta_grp")
+setDT(temp)
+temp[, cc_delta := cc_score_1-cc_score_0]
+temp[, q1_delta := q1_score_1-q1_score_0]
+temp[, q2a_delta := q2a_score_1-q2a_score_0]
+temp[, q2c_delta := q2c_score_1-q2c_score_0]
+temp[, q2d_delta := q2d_score_1-q2d_score_0]
+#comps
+temp[, salescomp_0 := round((MonthlySales_0-LYMonthlySales_0)/LYMonthlySales_0,4)]
+temp[, salescomp_1 := round((MonthlySales_1-LYMonthlySales_1)/LYMonthlySales_1,4)]
+temp[, salescomp_delta := salescomp_1-salescomp_0]
+#temp <- setorder(temp,thoursphp_delta_grp)
+# fullw[,.N/nrow(fullw),by="thoursphp_delta_grp"]
+#aggregate to get average CC score by th group
+temp2a <- fullw[, c("thours_delta_grp",grep("score",colnames(fullw),value=T)), with=F]
+temp2a <- temp2a[, lapply(.SD,function(x) round(mean(x,na.rm=T),4)*100), .SDcols=colnames(temp2a)[2:ncol(temp2a)], by="thours_delta_grp"]
+temp2b <- fullw[, c("thours_delta_grp",grep("totalresp",colnames(fullw),value=T),grep("Monthly",colnames(fullw),value=T)), with=F]
+temp2b <- temp2b[, lapply(.SD,sum,na.rm=T), .SDcols=colnames(temp2b)[2:ncol(temp2b)], by="thours_delta_grp"]
+temp2 <- left_join(temp2a,temp2b,by="thours_delta_grp")
+setDT(temp2)
+temp2[, cc_delta := cc_score_1-cc_score_0]
+temp2[, q1_delta := q1_score_1-q1_score_0]
+temp2[, q2a_delta := q2a_score_1-q2a_score_0]
+temp2[, q2c_delta := q2c_score_1-q2c_score_0]
+temp2[, q2d_delta := q2d_score_1-q2d_score_0]
+#comps
+temp2[, salescomp_0 := round((MonthlySales_0-LYMonthlySales_0)/LYMonthlySales_0,4)]
+temp2[, salescomp_1 := round((MonthlySales_1-LYMonthlySales_1)/LYMonthlySales_1,4)]
+temp2[, salescomp_delta := salescomp_1-salescomp_0]
+#temp2 <- setorder(temp2,thours_delta_grp)
+# fullw[,.N/nrow(fullw),by="thours_delta_grp"]
+
+#isolate extreme decliners
+temp3 <- fullw[thphpdelta_qtile==1, c("thoursphp_delta",grep("score",colnames(fullw),value=T),grep("totalresp",colnames(fullw),value=T),grep("Monthly",colnames(fullw),value=T)), with=F]
+temp3 <- setorder(temp3,-thoursphp_delta)
+rankvar <- c(1:nrow(temp3))
+temp3 <- cbind(temp3,rankvar)
+#keep top 50 stores
+temp3 <- temp3[rankvar<=300]
+temp3a <- temp3[, c(grep("score",colnames(temp3),value=T)), with=F]
+temp3a <- temp3a[, lapply(.SD,function(x) round(mean(x,na.rm=T),4)*100), .SDcols=colnames(temp3a)[1:ncol(temp3a)]]
+temp3b <- temp3[, c(grep("totalresp",colnames(temp3),value=T),grep("Monthly",colnames(temp3),value=T)), with=F]
+temp3b <- temp3b[, lapply(.SD,sum,na.rm=T), .SDcols=colnames(temp3b)[1:ncol(temp3b)]]
+temp3 <- cbind(temp3a,temp3b)
+setDT(temp3)
+#scores
+temp3[, cc_delta := cc_score_1-cc_score_0]
+temp3[, q1_delta := q1_score_1-q1_score_0]
+temp3[, q2a_delta := q2a_score_1-q2a_score_0]
+temp3[, q2c_delta := q2c_score_1-q2c_score_0]
+temp3[, q2d_delta := q2d_score_1-q2d_score_0]
+#comps
+temp3[, salescomp_0 := round((MonthlySales_0-LYMonthlySales_0)/LYMonthlySales_0,4)]
+temp3[, salescomp_1 := round((MonthlySales_1-LYMonthlySales_1)/LYMonthlySales_1,4)]
+temp3[, salescomp_delta := salescomp_1-salescomp_0]
+
+#isolate extreme decliners
+temp4 <- fullw[thphpdelta_qtile==3, c("thoursphp_delta",grep("score",colnames(fullw),value=T),grep("totalresp",colnames(fullw),value=T),grep("Monthly",colnames(fullw),value=T)), with=F]
+temp4 <- setorder(temp4,thoursphp_delta)
+rankvar <- c(1:nrow(temp4))
+temp4 <- cbind(temp4,rankvar)
+#keep top 50 stores
+temp4 <- temp4[rankvar<=300]
+temp4a <- temp4[, c(grep("score",colnames(temp4),value=T)), with=F]
+temp4a <- temp4a[, lapply(.SD,function(x) round(mean(x,na.rm=T),4)*100), .SDcols=colnames(temp4a)[1:ncol(temp4a)]]
+temp4b <- temp4[, c(grep("totalresp",colnames(temp4),value=T),grep("Monthly",colnames(temp4),value=T)), with=F]
+temp4b <- temp4b[, lapply(.SD,sum,na.rm=T), .SDcols=colnames(temp4b)[1:ncol(temp4b)]]
+temp4 <- cbind(temp4a,temp4b)
+setDT(temp4)
+#scores
+temp4[, cc_delta := cc_score_1-cc_score_0]
+temp4[, q1_delta := q1_score_1-q1_score_0]
+temp4[, q2a_delta := q2a_score_1-q2a_score_0]
+temp4[, q2c_delta := q2c_score_1-q2c_score_0]
+temp4[, q2d_delta := q2d_score_1-q2d_score_0]
+#comps
+temp4[, salescomp_0 := round((MonthlySales_0-LYMonthlySales_0)/LYMonthlySales_0,4)]
+temp4[, salescomp_1 := round((MonthlySales_1-LYMonthlySales_1)/LYMonthlySales_1,4)]
+temp4[, salescomp_delta := salescomp_1-salescomp_0]
+#top 50 agged
+thphp_group <- c("Top 50 Decliners","Top 50 Increasers")
+temp5 <- cbind(thphp_group,rbind(temp3,temp4))
+temp5 <- temp5[, c("thphp_group","cc_score_0","cc_delta",
+                   "q1_score_0","q1_delta",
+                   "salescomp_0","salescomp_delta"),with=F]
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+####
 
 #aggregate up to get topline
 fullwk <- full[, store_num := NULL]
@@ -325,6 +600,7 @@ llabels <- c("Customer connection","Lived up to values","Connect with team","Sup
              "Connect with customers","Reasonable demands") 
 xbreaks <- 8
 ybreaks <- 7
+
 #line chart, factored by one variable
 plot3 <- ggplot() +
   geom_line(data=pdata, aes(x=px, y=py, group=factor(groupvar), colour=factor(groupvar), linetype=factor(groupvar))) +

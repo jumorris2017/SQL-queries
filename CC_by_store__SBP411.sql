@@ -33,3 +33,53 @@ GROUP BY
     ce.STORE_NUM
 ;
 
+
+
+
+SELECT
+      TRUNC(ce.TRANS_DTM) as trans_date
+
+  -- Total valid response counts by question
+  ,COUNT(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.QSTN_ID END) AS Response_Total
+
+FROM APPDWH.AFT_CV_SRVY_RSPNS ce
+
+  INNER JOIN APPDWH.ADT_CAL c
+    ON TRUNC(ce.TRANS_DTM) = c.CAL_DT
+      AND c.FSCL_YR_NUM = 2017 
+      AND c.FSCL_QTR_IN_YR_NUM = 4 -- ADDED FOR PT3
+      
+  INNER JOIN APPDWH.DDM_RETAIL_ORG_STORE_DIST org
+    ON ce.STORE_NUM = org.STORE_NUM
+      AND org.DIV_ORG_LVL_ID IN (2)  -- U.S. company stores only (including reserve bar), but excluding New Concepts and Roastery
+
+WHERE ce.RSPNS_ID <> '9'  -- rspns_id = 9 for unanswered questions
+  AND ce.QSTN_ID NOT IN ('Q1','Q11') -- these questions are not in Customer Connection or Store Operations scores
+
+GROUP BY
+    TRUNC(ce.TRANS_DTM)
+ORDER BY
+    TRUNC(ce.TRANS_DTM)
+;
+
+
+
+
+SELECT
+  -- Total valid response counts by question
+  ,AVG(AVG(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.QSTN_ID END),0) AS Response_Total
+
+FROM APPDWH.AFT_CV_SRVY_RSPNS ce
+
+  INNER JOIN APPDWH.ADT_CAL c
+    ON TRUNC(ce.TRANS_DTM) = c.CAL_DT
+      AND c.FSCL_YR_NUM = 2017 
+      AND c.FSCL_QTR_IN_YR_NUM = 4 -- ADDED FOR PT3
+      
+  INNER JOIN APPDWH.DDM_RETAIL_ORG_STORE_DIST org
+    ON ce.STORE_NUM = org.STORE_NUM
+      AND org.DIV_ORG_LVL_ID IN (2)  -- U.S. company stores only (including reserve bar), but excluding New Concepts and Roastery
+
+WHERE ce.RSPNS_ID <> '9'  -- rspns_id = 9 for unanswered questions
+  AND ce.QSTN_ID NOT IN ('Q1','Q11') -- these questions are not in Customer Connection or Store Operations scores
+;

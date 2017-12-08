@@ -128,7 +128,7 @@ FROM(
       WHERE STR.OWNR_TYPE_CD = 'CO'
         AND STR.CNTRY_CD_2_DGT_ISO = 'US'
         AND POSH.GROSS_REV_LCL_AMT > 0
-       AND ca.FSCL_YR_NUM > 2015
+       AND ca.FSCL_YR_NUM > 2014
        --AND ca.FSCL_QTR_IN_YR_NUM = 4
         
       GROUP BY

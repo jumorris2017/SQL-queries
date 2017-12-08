@@ -1,9 +1,10 @@
 SELECT
-    c.CAL_DT AS cal_date
-    ,c.DAY_IN_CAL_WK_NUM AS cal_day
-    ,c.HLDY_IND AS holiday
-    ,c.CAL_YR_NUM AS cal_year
-    ,c.CAL_WK_IN_YR_NUM AS cal_week
+    c.CAL_DT AS caldate
+    ,c.DAY_IN_CAL_WK_NUM AS calday
+    ,c.HLDY_IND AS holidayflag
+    ,c.CAL_YR_NUM AS calyear
+    ,c.CAL_WK_IN_YR_NUM AS calweek
+    ,c.DAY_IN_CAL_YR_NUM AS caldayyear
 
   -- Total valid response counts by question
   --,COUNT(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.QSTN_ID END) AS Q2_2_Response_Total
@@ -14,7 +15,7 @@ SELECT
   -- Compute top box scores for each question
   ,CASE WHEN COUNT(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.QSTN_ID END) = 0 THEN NULL
    ELSE TO_CHAR(SUM(CASE WHEN ce.RSPNS_ID = '7' AND ce.QSTN_ID = 'Q2_2' THEN 1 ELSE 0 END)
-    / COUNT(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.QSTN_ID END),'0.0000') END AS cc_score
+    / COUNT(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.QSTN_ID END),'0.0000') END AS ccscore
 
   -- Compute average scores for each question
   --,TO_CHAR(AVG(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.RSPNS_ID END),'0.00') AS CC_Avg_Score
@@ -38,6 +39,8 @@ GROUP BY
     ,c.HLDY_IND
     ,c.CAL_YR_NUM
     ,c.CAL_WK_IN_YR_NUM
+    ,c.DAY_IN_CAL_YR_NUM
 ORDER BY
     c.CAL_DT
 ;
+
