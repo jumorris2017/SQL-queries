@@ -36,3 +36,25 @@ GROUP BY
 ;
 
 
+/* part 2 -- weekly comps */
+ SELECT --f.FISCAL_YEAR_NUMBER
+         f.STORE_NUMBER
+        , SUM(f.NET_DISCOUNTED_SALES_AMT) "MonthlySales"
+        , SUM(f.NET_DISCOUNTED_SALES_LY_AMT) "LYMonthlySales"
+        --, ROUND((SUM(f.NET_DISCOUNTED_SALES_AMT) - SUM(f.NET_DISCOUNTED_SALES_LY_AMT)) / SUM(f.NET_DISCOUNTED_SALES_LY_AMT),4) AS salescomp
+        , ca.FSCL_WK_IN_YR_NUM
+    FROM APPBUS.DFT_INTL_STORE_DAY_VW f      
+        INNER JOIN APPDWH.DDM_RETAIL_ORG_STORE_DIST org
+            ON f.STORE_NUMBER = org.STORE_NUM
+            AND org.DIV_ORG_LVL_ID IN (3,6,106)  -- US CO stores
+        INNER JOIN APPDWH.ADT_CAL ca
+            ON f.BUSINESS_DATE = ca.CAL_DT
+            AND ca.FSCL_YR_NUM = 2018
+            AND ca.FSCL_WK_IN_YR_NUM IN (1,2,3,8)
+        INNER JOIN APPBUS.AFT_STORE_COMP_PER_VW comp
+            ON f.STORE_NUMBER = comp.STORE_NUMBER
+            AND COMP_CODE = 'Y'
+    GROUP BY f.STORE_NUMBER, ca.FSCL_WK_IN_YR_NUM
+ ;
+
+
