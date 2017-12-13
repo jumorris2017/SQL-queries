@@ -2,21 +2,29 @@
 ## Request from Lisa 11/28/17 ##
 
 #load libraries
+library(foreign)
 library(data.table)
 library(dplyr)
 library(Hmisc)
 library(ggplot2)
 library(PerformanceAnalytics)
+library(labelled)
 
 #load data
 #training hours
-####CSV flat file from macro-enabled .xlsb (project folder)
-th <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/q1laborreport.csv")
-#setnames
-setnames(th,c("STORE_NUM","FISCAL_WEEK_NUMBER","QTD_ACTUAL_TRAINING"),
-         c("store_num","fiscalweek","thours"))
+# ####CSV flat file from macro-enabled .xlsb (project folder)
+# th <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/q1laborreport.csv")
+th <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/traininghours_by_store_q1laborreport.csv")
+# #setnames
+# setnames(th,c("STORE_NUM","FISCAL_WEEK_NUMBER","QTD_ACTUAL_TRAINING","QTD_ACTUAL_OPS2"),
+#          c("store_num","fiscalweek","thours","opshours"))
+setnames(th,c("STORE_NUM","FSCL_WK_IN_YR_NUM","WEEKLY_ACTUAL_TRAIN_HRS","WEEKLY_ACTUAL_OPS2_HRS"),
+         c("store_num","fiscalweek","thours","opshours"))
 #aggregate by fiscal week to get a sense of the number of additional hours
-tempth <- th[, list(thours = round(sum(thours,na.rm=T),0)), by="fiscalweek"]
+tempth <- th[, list(thours = round(sum(thours,na.rm=T),0),
+                    opshours = round(sum(opshours,na.rm=T),0)), by="fiscalweek"]
+#keep weeks consistent
+tempth <- tempth[fiscalweek<=10]
 
 # ####holiday hours: CSV flat file from macro-enabled .xlsb (project folder)
 # hol <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/q1laborreport_holiday.csv")
@@ -54,6 +62,73 @@ p <- na.omit(p, cols="store_num")
 #keep only store managers
 p <- p[Job_Key==50000117]
 p[, Job_Key := NULL]
+#create vector of unique partnerIDs
+p_pvec <- unique(p[,pn])
+
+#same partner data
+sp <- spss.get("//starbucks/amer/portal/Departments/WMO/Marketing Research/New Q drive/Partner Insights/Partner Perspectives/Research/Partner Experience Study/12_Wave9_Retail (Nov 2017)/02 Data/Q1 FY18 Retail PES US CLEAN.sav", force.single=T, use.value.labels=F, to.data.frame=T)
+#remove variable labels
+for (i in 1:ncol(sp)) {
+  z<-class(sp[[i]])
+  if (z[[1]]=='labelled'){
+    class(sp[[i]])<-z[-1]
+    attr(sp[[i]],'label')<-NULL
+  }
+}
+setDT(sp)
+#set names
+setnames(sp,c("PartnerID","BlockB.2","BlockB.2.W8","BlockB.2.TB","BlockB.2.TB.W8",
+              "BlockC.8","BlockC.8.W8","BlockC.8.TB","BlockC.8.TB.W8",
+              "BlockB.1","BlockB.1.W8","BlockB.1.TB","BlockB.1.TB.W8",
+              "BlockA.6","BlockA.6.W8","BlockA.6.TB","BlockA.6.TB.W8",
+              "BlockC.2","BlockC.2.W8","BlockC.2.TB","BlockC.2.TB.W8",
+              "BlockC.4","BlockC.4.W8","BlockC.4.TB","BlockC.4.TB.W8",
+              "BlockB.0","BlockB.0.W8","BlockB.0.TB","BlockB.0.TB.W8",
+              "BlockB.5","BlockB.5.W8","BlockB.5.TB","BlockB.5.TB.W8",
+              "BlockC.9","BlockC.9.W8","BlockC.9.TB","BlockC.9.TB.W8",
+              "BlockA.7","BlockA.7.W8","BlockA.7.TB","BlockA.7.TB.W8",
+              "BlockB.6","BlockB.6.W8","BlockB.6.TB","BlockB.6.TB.W8"),
+         c("pn","pex_resdemands_1","pex_resdemands_0","pex_resdemands_TB_1","pex_resdemands_TB_0",
+           "pex_greatplace_1","pex_greatplace_0","pex_greatplace_TB_1","pex_greatplace_TB_0",
+           "pex_greatteam_1","pex_greatteam_0","pex_greatteam_TB_1","pex_greatteam_TB_0",
+           "pex_rightdec_1","pex_rightdec_0","pex_rightdec_TB_1","pex_rightdec_TB_0",
+           "pex_accomp_1","pex_accomp_0","pex_accomp_TB_1","pex_accomp_TB_0",
+           "pex_mission_1","pex_mission_0","pex_mission_TB_1","pex_mission_TB_0",
+           "pex_career_1","pex_career_0","pex_career_TB_1","pex_career_TB_0",
+           "pex_ethical_1","pex_ethical_0","pex_ethical_TB_1","pex_ethical_TB_0",
+           "pex_socimpact_1","pex_socimpact_0","pex_socimpact_TB_1","pex_socimpact_TB_0",
+           "pex_sched_1","pex_sched_0","pex_sched_TB_1","pex_sched_TB_0",
+           "pex_hourswk_1","pex_hourswk_0","pex_hourswk_TB_1","pex_hourswk_TB_0"))
+#drop partners who only have one wave
+sp <- sp[W8.Flag==1]
+sp <- sp[Store.Role==14]
+#keep only numeric variables
+sp <- sp[, sapply(sp, is.numeric), with=F]
+sp <- sp[, -grep("CONCEPT",names(sp)), with=F]
+#my job has reasonable demands
+# #mean W8: 3.107306, mean: 2.916667, delta: -0.1906393
+# sp[, pex_resdemands_delta := pex_resdemands_1 - pex_resdemands_0]
+# #mean W8 TB: 0.1643836, mean TB: 0.1369863, delta: -0.02739726
+# sp[, pex_resdemands_TB_delta := pex_resdemands_TB_1 - pex_resdemands_TB_0]
+# #recommend Starbucks as a great place to work
+# #mean W8: 4.383562, mean: 4.299087, delta: -0.08447489
+# sp[, pex_greatplace_delta := pex_greatplace_1 - pex_greatplace_0]
+# #mean W8 TB: 0.5833333, mean TB: 0.5627854, delta: -0.02054795
+# sp[, pex_greatplace_TB_delta := pex_greatplace_TB_1 - pex_greatplace_TB_0]
+#subset to SM's in pulse
+sp_p_subset <- sp[pn %in% p_pvec]
+#create vector of unique partnerIDs
+sp_p_subset_pvec <- unique(sp_p_subset[,pn])
+#subset questions
+sp_p_subset <- sp_p_subset[, c("pn",grep("pex_",colnames(sp_p_subset),value=T)), with=F]
+#pull in store numbers
+pstores <- p[pn %in% sp_p_subset_pvec, c("pn","store_num"), with=F]
+pstores <- subset(pstores, !duplicated(pstores$pn))
+#merge in store numbers
+sp_p_subset <- merge(sp_p_subset, pstores, by=c("pn"), all.x=T)
+#aggregate by store
+sp_p_subset[, pn := NULL]
+sp_p_subset <- sp_p_subset[, lapply(.SD,sum,na.rm=T), by=c("store_num")]
 
 #hire data
 # h <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/hire-rehire_count_bystoreFY18.csv", colClasses=list(character=6))
@@ -104,6 +179,7 @@ he[is.na(he)] <- 0
 comp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/q1laborreport_comp.csv")
 setnames(comp,c("STORE_NUMBER","FSCL_WK_IN_YR_NUM"),c("store_num","fiscalweek"))
 
+
 #organize pulse data
 temp1 <- p %>% 
   group_by(calweek, Question_ID, store_num) %>%
@@ -119,11 +195,16 @@ setDT(pf)
 pf[is.na(pf[,tbcount]), tbcount := 0]
 pf <- dcast.data.table(pf, calweek + store_num ~ Question_ID, value.var=c("tbcount","totalresp"))
 
+
 #joins
 #get rid of calendar week
 pfcc <- merge(cc,pf, by=c("store_num","calweek"), all=FALSE)
 pfcc[, calweek := NULL]
 pfcc <- pfcc[, lapply(.SD,sum,na.rm=T), by=c("store_num","fiscalweek")]
+#KEEP SAME WEEKS OF DATA#
+#REMOVE THESE LINES OF CODE WHEN WE GET MORE DATA FROM EVERY SOURCE#
+# pfcc <- pfcc[fiscalweek<=8]
+
 #join together
 full <- merge(th, pfcc, by=c("store_num","fiscalweek"), all=FALSE)
 full <- merge(full, hi, by=c("store_num","fiscalweek"), all.x=T)
@@ -139,14 +220,16 @@ full <- full[, lapply(.SD,sum,na.rm=T), by=c("store_num","fiscalweek")]
 # full[, thourslag := shift(thours, 1L, fill=NA, type="lag"), by="store_num"]
 
 ## 12/6/17 interjection ##
+#combine thours + ops2hours
+full[, thours := thours + opshours]
 
 #generate variable for total hours per hourly worker (shift + barista)
 full[, thoursphp := thours/(hcnt_shift+hcnt_bar)]
 
 #compare week 8 to average of weeks 1-3
-full[fiscalweek==8, fywk8 := 1]
-full[fiscalweek>=1&fiscalweek<=3, fywk8 := 0]
-full <- full[fywk8==0|fywk8==1]
+full[fiscalweek>=8, fywkpost := 1]
+full[fiscalweek>=1&fiscalweek<=3, fywkpost := 0]
+full <- full[fywkpost==0|fywkpost==1]
 full[, fiscalweek := NULL]
 
 #calculate weekly cc by store
@@ -162,8 +245,9 @@ full[, q2d_score := tbcount_Q2_D/totalresp_Q2_D]
 full[, salescomp := round((MonthlySales-LYMonthlySales)/LYMonthlySales,4)]
 
 #aggregate
-# full <- full[, lapply(.SD,mean,na.rm=T), .SDcols=c("thours","hcnt_shift","hcnt_bar","thoursphp",grep("score",colnames(full),value=T)), by=c("store_num","fywk8")]
+# full <- full[, lapply(.SD,mean,na.rm=T), .SDcols=c("thours","hcnt_shift","hcnt_bar","thoursphp",grep("score",colnames(full),value=T)), by=c("store_num","fywkpost")]
 full <- full[, list(thours = mean(thours,na.rm=T),
+                    opshours = mean(opshours,na.rm=T),
                     hcnt_shift = mean(hcnt_shift,na.rm=T),
                     hcnt_bar = mean(hcnt_bar,na.rm=T),
                     thoursphp = mean(thoursphp,na.rm=T),
@@ -179,19 +263,23 @@ full <- full[, list(thours = mean(thours,na.rm=T),
                     totalresp_Q2_D = sum(totalresp_Q2_D,na.rm=T),
                     MonthlySales = sum(MonthlySales,na.rm=T),
                     LYMonthlySales = sum(LYMonthlySales,na.rm=T),
-                    salescomp = mean(salescomp,na.rm=T)), by=c("store_num","fywk8")]
+                    salescomp = mean(salescomp,na.rm=T)), by=c("store_num","fywkpost")]
 
 #create headcount var
 full[, hcnt_shiftbar := rowSums(.SD,na.rm=T), .SDcols=c("hcnt_shift","hcnt_bar")]
 
 #swing wide
-fullw <- dcast.data.table(full, store_num ~ fywk8, value.var=c("thours","thoursphp","hcnt_shiftbar",grep("score",colnames(full),value=T),grep("totalresp",colnames(full),value=T),grep("Monthly",colnames(full),value=T)))
+fullw <- dcast.data.table(full, store_num ~ fywkpost, value.var=c("thours","opshours","thoursphp","hcnt_shiftbar",grep("score",colnames(full),value=T),grep("totalresp",colnames(full),value=T),grep("Monthly",colnames(full),value=T)))
+#merge in same partner sentiment
+fullw <- merge(fullw, sp_p_subset, by="store_num", all.x=T)
+
 #drop rows without both timepoints for hours and CC
 fullw <- na.omit(fullw,cols=c("thours_0","thours_1","cc_score_0","cc_score_1"))
 #round
-fullw[, (colnames(fullw)[2:9]) := lapply(.SD, function(x) round(x,2)), .SDcols=colnames(fullw)[2:9]]
+fullw[, (colnames(fullw)[2:11]) := lapply(.SD, function(x) round(x,2)), .SDcols=colnames(fullw)[2:11]]
 #make delta between time periods
 fullw[, thours_delta := thours_1-thours_0]
+fullw[, opshours_delta := opshours_1-opshours_0]
 fullw[, thoursphp_delta := thoursphp_1-thoursphp_0]
 fullw[, cc_delta := cc_score_1-cc_score_0]
 is.na(fullw) <- sapply(fullw, is.infinite)
@@ -236,7 +324,7 @@ fullw[, lapply(.SD,mean,na.rm=T), .SDcols=colnames(fullw)[2:ncol(fullw)]]
 #              j = rownames(m)[col(m)[ut]],
 #              cor=t(m)[ut],
 #              p=m[ut])
-}
+# }
 # #flatten the table
 # flattenSquareMatrix(cor.prob(fullw[,2:ncol(fullw)]))
 # #plot the data
@@ -381,22 +469,22 @@ fullw[thours_delta>0, thours_delta_grp := "Hours - up"] #positive
 # temp2[, salescomp_delta := salescomp_1-salescomp_0]
 # #temp2 <- setorder(temp2,thours_delta_grp)
 # # fullw[,.N/nrow(fullw),by="thours_delta_grp"]
-# 
+
 
 
 
 #isolate extremes
 n <- 500
 #decliners
-temp3 <- fullw[thphpdelta_qtile==1, c("thoursphp_delta",grep("score",colnames(fullw),value=T),grep("totalresp",colnames(fullw),value=T),grep("Monthly",colnames(fullw),value=T)), with=F]
+temp3 <- fullw[thphpdelta_qtile==1, c("thoursphp_delta",grep("opshours",colnames(fullw),value=T),grep("score",colnames(fullw),value=T),grep("totalresp",colnames(fullw),value=T),grep("Monthly",colnames(fullw),value=T),grep("pex_",colnames(fullw),value=T)), with=F]
 temp3 <- setorder(temp3,-thoursphp_delta)
 rankvar <- c(1:nrow(temp3))
 temp3 <- cbind(temp3,rankvar)
 #keep top 50 stores
 temp3 <- temp3[rankvar<=n]
-temp3a <- temp3[, c(grep("score",colnames(temp3),value=T)), with=F]
+temp3a <- temp3[, c(grep("score",colnames(temp3),value=T),grep("pex_",colnames(temp3),value=T)), with=F]
 temp3a <- temp3a[, lapply(.SD,function(x) round(mean(x,na.rm=T),4)*100), .SDcols=colnames(temp3a)[1:ncol(temp3a)]]
-temp3b <- temp3[, c(grep("totalresp",colnames(temp3),value=T),grep("Monthly",colnames(temp3),value=T)), with=F]
+temp3b <- temp3[, c(grep("totalresp",colnames(temp3),value=T),grep("opshours",colnames(temp3),value=T),grep("Monthly",colnames(temp3),value=T)), with=F]
 temp3b <- temp3b[, lapply(.SD,sum,na.rm=T), .SDcols=colnames(temp3b)[1:ncol(temp3b)]]
 temp3 <- cbind(temp3a,temp3b)
 setDT(temp3)
@@ -406,20 +494,45 @@ temp3[, q1_delta := q1_score_1-q1_score_0]
 temp3[, q2a_delta := q2a_score_1-q2a_score_0]
 temp3[, q2c_delta := q2c_score_1-q2c_score_0]
 temp3[, q2d_delta := q2d_score_1-q2d_score_0]
+#loop through elements of same partner survey to make deltas
+list0 <- grep('pex_',grep('TB_0',colnames(temp3),value=T),value=T)
+list1 <- grep('pex_',grep('TB_1',colnames(temp3),value=T),value=T)
+listd <- sub('TB_1','delta',list1)
+xvec <- rep(NA,length=length(listd))
+for (i in 1:length(listd)) {
+  #d[, listd[[i]] := list1[[i]] - list0[[i]]]
+  d <- temp3[, c(list1[[i]],list0[[i]]), with=F]
+  xvec[[i]] <- d[[1,1]]-d[[1,2]]
+  #print(xvec)
+}
+xmat <- as.data.table(t(xvec))
+setnames(xmat,listd)
+temp3 <- cbind(xmat,temp3)
+# temp3[, pex_resdemands_delta := pex_resdemands_TB_1-pex_resdemands_TB_0]
+# temp3[, pex_greatplace_delta := pex_greatplace_TB_1-pex_greatplace_TB_0]
+# temp3[, pex_greatteam_delta := pex_greatteam_TB_1-pex_greatteam_TB_0]
+# temp3[, pex_rightdec_delta := pex_rightdec_TB_1-pex_rightdec_TB_0]
+# temp3[, pex_sched_delta := pex_sched_TB_1-pex_sched_TB_0]
+# temp3[, pex_accomp_delta := pex_accomp_TB_1-pex_accomp_TB_0]
+# temp3[, pex_ethical_delta := pex_ethical_TB_1-pex_ethical_TB_0]
+# temp3[, pex_socimpact_delta := pex_socimpact_TB_1-pex_socimpact_TB_0]
+# temp3[, pex_mission_delta := pex_mission_TB_1-pex_mission_TB_0]
+# temp3[, pex_career_delta := pex_career_TB_1-pex_career_TB_0]
+# temp3[, pex_hourswk_delta := pex_hourswk_TB_1-pex_hourswk_TB_0]
 #comps
 temp3[, salescomp_0 := round((MonthlySales_0-LYMonthlySales_0)/LYMonthlySales_0,4)]
 temp3[, salescomp_1 := round((MonthlySales_1-LYMonthlySales_1)/LYMonthlySales_1,4)]
 temp3[, salescomp_delta := salescomp_1-salescomp_0]
 #isolate increasers
-temp4 <- fullw[thphpdelta_qtile==3, c("thoursphp_delta",grep("score",colnames(fullw),value=T),grep("totalresp",colnames(fullw),value=T),grep("Monthly",colnames(fullw),value=T)), with=F]
+temp4 <- fullw[thphpdelta_qtile==3, c("thoursphp_delta",grep("opshours",colnames(fullw),value=T),grep("score",colnames(fullw),value=T),grep("totalresp",colnames(fullw),value=T),grep("pex_",colnames(fullw),value=T),grep("Monthly",colnames(fullw),value=T)), with=F]
 temp4 <- setorder(temp4,thoursphp_delta)
 rankvar <- c(1:nrow(temp4))
 temp4 <- cbind(temp4,rankvar)
 #keep top 50 stores
 temp4 <- temp4[rankvar<=n]
-temp4a <- temp4[, c(grep("score",colnames(temp4),value=T)), with=F]
+temp4a <- temp4[, c(grep("score",colnames(temp4),value=T),grep("pex_",colnames(temp4),value=T)), with=F]
 temp4a <- temp4a[, lapply(.SD,function(x) round(mean(x,na.rm=T),4)*100), .SDcols=colnames(temp4a)[1:ncol(temp4a)]]
-temp4b <- temp4[, c(grep("totalresp",colnames(temp4),value=T),grep("Monthly",colnames(temp4),value=T)), with=F]
+temp4b <- temp4[, c(grep("totalresp",colnames(temp4),value=T),grep("opshours",colnames(temp4),value=T),grep("Monthly",colnames(temp4),value=T)), with=F]
 temp4b <- temp4b[, lapply(.SD,sum,na.rm=T), .SDcols=colnames(temp4b)[1:ncol(temp4b)]]
 temp4 <- cbind(temp4a,temp4b)
 setDT(temp4)
@@ -429,6 +542,20 @@ temp4[, q1_delta := q1_score_1-q1_score_0]
 temp4[, q2a_delta := q2a_score_1-q2a_score_0]
 temp4[, q2c_delta := q2c_score_1-q2c_score_0]
 temp4[, q2d_delta := q2d_score_1-q2d_score_0]
+#loop through elements of same partner survey to make deltas
+list0 <- grep('pex_',grep('TB_0',colnames(temp4),value=T),value=T)
+list1 <- grep('pex_',grep('TB_1',colnames(temp4),value=T),value=T)
+listd <- sub('TB_1','delta',list1)
+xvec <- rep(NA,length=length(listd))
+for (i in 1:length(listd)) {
+  #d[, listd[[i]] := list1[[i]] - list0[[i]]]
+  d <- temp4[, c(list1[[i]],list0[[i]]), with=F]
+  xvec[[i]] <- d[[1,1]]-d[[1,2]]
+  #print(xvec)
+}
+xmat <- as.data.table(t(xvec))
+setnames(xmat,listd)
+temp4 <- cbind(xmat,temp4)
 #comps
 temp4[, salescomp_0 := round((MonthlySales_0-LYMonthlySales_0)/LYMonthlySales_0,4)]
 temp4[, salescomp_1 := round((MonthlySales_1-LYMonthlySales_1)/LYMonthlySales_1,4)]
@@ -436,16 +563,19 @@ temp4[, salescomp_delta := salescomp_1-salescomp_0]
 #top 50 agged
 thphp_group <- c(paste0("Top ",n," Decliners"),paste0("Top ",n," Increasers"))
 temp5 <- cbind(thphp_group,rbind(temp3,temp4))
-temp5 <- temp5[, c("thphp_group","cc_score_0","cc_score_1","cc_delta",
+temp5 <- temp5[, c("thphp_group",
+                   #"opshours_0","opshours_1","opshours_delta",
+                   "cc_score_0","cc_score_1","cc_delta",
                    "q1_score_0","q1_score_1","q1_delta",
-                   "salescomp_0","salescomp_1","salescomp_delta"),with=F]
+                   "salescomp_0","salescomp_1","salescomp_delta",
+                   list0,list1,listd),with=F]
 
 #roughly the same
-temp6 <- fullw[thoursphp_delta>=-0.01&thoursphp_delta<=0.01, c("thoursphp_delta",grep("score",colnames(fullw),value=T),grep("totalresp",colnames(fullw),value=T),grep("Monthly",colnames(fullw),value=T)), with=F]
+temp6 <- fullw[thoursphp_delta>=-0.2&thoursphp_delta<=0.2, c("thoursphp_delta",grep("opshours",colnames(fullw),value=T),grep("score",colnames(fullw),value=T),grep("totalresp",colnames(fullw),value=T),grep("Monthly",colnames(fullw),value=T),grep("pex_",colnames(fullw),value=T)), with=F]
 #keep top 50 stores
-temp6a <- temp6[, c(grep("score",colnames(temp6),value=T)), with=F]
+temp6a <- temp6[, c(grep("score",colnames(temp6),value=T),grep("pex_",colnames(temp6),value=T)), with=F]
 temp6a <- temp6a[, lapply(.SD,function(x) round(mean(x,na.rm=T),4)*100), .SDcols=colnames(temp6a)[1:ncol(temp6a)]]
-temp6b <- temp6[, c(grep("totalresp",colnames(temp6),value=T),grep("Monthly",colnames(temp6),value=T)), with=F]
+temp6b <- temp6[, c(grep("totalresp",colnames(temp6),value=T),grep("opshours",colnames(temp6),value=T),grep("Monthly",colnames(temp6),value=T)), with=F]
 temp6b <- temp6b[, lapply(.SD,sum,na.rm=T), .SDcols=colnames(temp6b)[1:ncol(temp6b)]]
 temp6 <- cbind(temp6a,temp6b)
 setDT(temp6)
@@ -455,15 +585,35 @@ temp6[, q1_delta := q1_score_1-q1_score_0]
 temp6[, q2a_delta := q2a_score_1-q2a_score_0]
 temp6[, q2c_delta := q2c_score_1-q2c_score_0]
 temp6[, q2d_delta := q2d_score_1-q2d_score_0]
+#loop through elements of same partner survey to make deltas
+list0 <- grep('pex_',grep('TB_0',colnames(temp6),value=T),value=T)
+list1 <- grep('pex_',grep('TB_1',colnames(temp6),value=T),value=T)
+listd <- sub('TB_1','delta',list1)
+xvec <- rep(NA,length=length(listd))
+for (i in 1:length(listd)) {
+  #d[, listd[[i]] := list1[[i]] - list0[[i]]]
+  d <- temp6[, c(list1[[i]],list0[[i]]), with=F]
+  xvec[[i]] <- d[[1,1]]-d[[1,2]]
+  #print(xvec)
+}
+xmat <- as.data.table(t(xvec))
+setnames(xmat,listd)
+temp6 <- cbind(xmat,temp6)
 #comps
 temp6[, salescomp_0 := round((MonthlySales_0-LYMonthlySales_0)/LYMonthlySales_0,4)]
 temp6[, salescomp_1 := round((MonthlySales_1-LYMonthlySales_1)/LYMonthlySales_1,4)]
 temp6[, salescomp_delta := salescomp_1-salescomp_0]
 temp6 <- temp6[, c("cc_score_0","cc_score_1","cc_delta",
                    "q1_score_0","q1_score_1","q1_delta",
-                   "salescomp_0","salescomp_1","salescomp_delta"),with=F]
+                   #"opshours_0","opshours_1","opshours_delta",
+                   "salescomp_0","salescomp_1","salescomp_delta",
+                   list0,list1,listd),with=F]
 
-
+#print
+temp6x <- cbind("same",temp6)
+setnames(temp6x,"V1","thphp_group")
+temp6x <- rbind(temp5,temp6x)
+write.csv(temp6x,file="C:/Users/jumorris/Documents/tsp.csv")
 
 
 
@@ -665,3 +815,25 @@ print(plot3)
 # tempthhol2 <- left_join(tempth,temphol2,by="fiscalweek")
 # setDT(tempthhol2)
 # tempthhol2[, thoursnohol := ifelse(is.na(holhours),thours,thours-holhours)]
+
+
+
+temp <- copy(fullw)
+temp[, cc_delta := cc_score_1-cc_score_0]
+temp[, q1_delta := q1_score_1-q1_score_0]
+temp[, q2a_delta := q2a_score_1-q2a_score_0]
+temp[, q2c_delta := q2c_score_1-q2c_score_0]
+temp[, q2d_delta := q2d_score_1-q2d_score_0]
+#comps
+temp[, salescomp_0 := round((MonthlySales_0-LYMonthlySales_0)/LYMonthlySales_0,4)]
+temp[, salescomp_1 := round((MonthlySales_1-LYMonthlySales_1)/LYMonthlySales_1,4)]
+temp[, salescomp_delta := salescomp_1-salescomp_0]
+#correlations
+cor(temp[,cc_score_1],temp[,thours_1])
+cor(temp[,cc_delta],temp[,thours_delta])
+cor(temp[,q1_delta],temp[,thours_delta])
+
+temp2 <- temp[, c("salescomp_delta","thours_delta"), with=F]
+is.na(temp2) <- sapply(temp2, is.infinite)
+temp2 <- na.omit(temp2, cols=c("salescomp_delta"))
+cor(temp2[,salescomp_delta],temp2[,thours_delta])

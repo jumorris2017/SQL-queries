@@ -1,3 +1,5 @@
+/*part 1 -- weekly CC */
+/*export as "q1laborreport.csv"*/
 SELECT
       ce.STORE_NUM
     ,c.FSCL_WK_IN_YR_NUM
@@ -37,11 +39,13 @@ GROUP BY
 
 
 /* part 2 -- weekly comps */
+/*export as "q1laborreport_comp.csv"*/
  SELECT --f.FISCAL_YEAR_NUMBER
          f.STORE_NUMBER
         , SUM(f.NET_DISCOUNTED_SALES_AMT) "MonthlySales"
         , SUM(f.NET_DISCOUNTED_SALES_LY_AMT) "LYMonthlySales"
         --, ROUND((SUM(f.NET_DISCOUNTED_SALES_AMT) - SUM(f.NET_DISCOUNTED_SALES_LY_AMT)) / SUM(f.NET_DISCOUNTED_SALES_LY_AMT),4) AS salescomp
+        --, SUM(f.ACTIVE_STORE_DAY_CNT) "day_count"
         , ca.FSCL_WK_IN_YR_NUM
     FROM APPBUS.DFT_INTL_STORE_DAY_VW f      
         INNER JOIN APPDWH.DDM_RETAIL_ORG_STORE_DIST org
@@ -56,5 +60,6 @@ GROUP BY
             AND COMP_CODE = 'Y'
     GROUP BY f.STORE_NUMBER, ca.FSCL_WK_IN_YR_NUM
  ;
+
 
 

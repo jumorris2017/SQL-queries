@@ -60,3 +60,6 @@ CAL_YR_NUM, STORE_NUM, AREA_ORG_LVL_VERS_SID, new_week
 ORDER BY
 CAL_YR_NUM DESC, new_week DESC
 ;
+
+
+
