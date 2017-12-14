@@ -123,3 +123,6 @@ getNs <- domt[,list(RSPNS_COUNT_PRE = sum(RSPNS_COUNT_PRE,na.rm=T),
                        PEAK_RSPNS_COUNT_POST = sum(PEAK_RSPNS_COUNT_POST,na.rm=T))]
 
 
+
+
+
