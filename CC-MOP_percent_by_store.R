@@ -49,3 +49,34 @@ temp <- mop[, list(
 temp <- setorder(temp,mopgroup)
 #write file
 write.xlsx(temp,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/CC-MOP_percent.xlsx")
+
+
+
+
+
+##FY15 Q4 UPDATE
+mop15 <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/CC-SP_by_store_cafe_onlyFY15Q4.csv")
+mop15[, STORE_NUM := as.numeric(STORE_NUM)]
+mop15 <- mop15[STORE_NUM %in% unique(mop17[,STORE_NUM])]
+mop15 <- left_join(mop15,mop17,by="STORE_NUM")
+setDT(mop15)
+mop15 <- na.omit(mop15,cols="mopgroup")
+
+#CC - NON-MOP transactions only
+mop15 <- mop15[ORD_MTHD_CD=="CAFE"]
+
+#calculate CC TB
+mop15[, tb_score := PEAK_TB_COUNT/PEAK_RSPNS_COUNT]
+mop15 <- na.omit(mop15,cols="tb_score")
+
+#aggregate
+temp <- mop15[, list(
+  PEAK_TB_COUNT = sum(PEAK_TB_COUNT,na.rm=T),
+  PEAK_RSPNS_COUNT = sum(PEAK_RSPNS_COUNT,na.rm=T),
+  #N = .N,
+  tb_score = round(sum(PEAK_TB_COUNT,na.rm=T)/sum(PEAK_RSPNS_COUNT,na.rm=T),4)*100), 
+  by=c("mopgroup","QSTN_ID")]
+temp <- setorder(temp,QSTN_ID,mopgroup)
+#write file
+write.xlsx(temp,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/CC-SP-MOP_percent.xlsx")
+

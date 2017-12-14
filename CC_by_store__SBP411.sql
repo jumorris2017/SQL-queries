@@ -67,7 +67,7 @@ ORDER BY
 
 SELECT
   -- Total valid response counts by question
-  ,AVG(AVG(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.QSTN_ID END),0) AS Response_Total
+  AVG(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.QSTN_ID END),0) AS Response_Total
 
 FROM APPDWH.AFT_CV_SRVY_RSPNS ce
 
