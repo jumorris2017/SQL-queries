@@ -1,18 +1,18 @@
 
 SELECT
    sr.QSTN_ID
-  ,sr.STORE_NUM
-  ,st.DIST_NUM
-  ,st.DIST_DESCR
-  ,st.AREA_NUM
-  ,st.AREA_DESCR
-  ,st.RGN_NUM
-  ,st.RGN_DESCR
-  ,st.CNTRY_CD_2_DGT_ISO AS COUNTRY_CD
-  ,st.OWNR_TYPE_CD
+  --,sr.STORE_NUM
+  --,st.DIST_NUM
+  --,st.DIST_DESCR
+  --,st.AREA_NUM
+  --,st.AREA_DESCR
+  --,st.RGN_NUM
+  --,st.RGN_DESCR
+  --,st.CNTRY_CD_2_DGT_ISO
+  --,st.OWNR_TYPE_CD
   ,ca.FSCL_YR_NUM
-  ,ca.FSCL_QTR_IN_YR_NUM
-  ,ca.FSCL_PER_IN_YR_NUM
+  --,ca.FSCL_QTR_IN_YR_NUM
+  --,ca.FSCL_PER_IN_YR_NUM
   ,ca.FSCL_WK_IN_YR_NUM
   ,SUM(CASE
     WHEN RSPNS_ID = '5' AND QSTN_ID = 'Q1' THEN COALESCE(w.WEIGHT_RT,1) /* coalesce returns non-null weight value, OR if null, returns 1 */
@@ -33,8 +33,9 @@ INNER JOIN APPCA.D_STORE_VERS st
     AND st.CURRENT_FLG = 'Y'
   
 WHERE sr.TRANS_DTM >= '29-DEC-14'  -- offical launch date of CO store program
-  --AND sr.QSTN_ID IN ('Q1','Q2_1','Q2_2','Q2_3','Q2_4','Q2_5','Q2_6','Q2_7','Q2_8')
-  AND sr.QSTN_ID = 'Q2_2'  -- CC Only
+  AND sr.QSTN_ID IN ('Q1','Q2_1','Q2_2','Q2_3','Q2_4','Q2_5','Q2_6','Q2_7','Q2_8')
+  --AND sr.QSTN_ID IN ('Q2_1','Q2_2','Q2_8')
+  --AND sr.QSTN_ID = 'Q2_2'  -- CC Only
   AND sr.RSPNS_ID <> '9'
   AND st.CNTRY_CD_2_DGT_ISO = 'US'
   AND st.OWNR_TYPE_CD = 'CO'
@@ -42,18 +43,18 @@ WHERE sr.TRANS_DTM >= '29-DEC-14'  -- offical launch date of CO store program
 
 GROUP BY
    sr.QSTN_ID
-  ,sr.STORE_NUM
-  ,st.DIST_NUM
-  ,st.DIST_DESCR
-  ,st.AREA_NUM
-  ,st.AREA_DESCR
-  ,st.RGN_NUM
-  ,st.RGN_DESCR
-  ,st.CNTRY_CD_2_DGT_ISO
-  ,st.OWNR_TYPE_CD
+  --,sr.STORE_NUM
+  --,st.DIST_NUM
+  --,st.DIST_DESCR
+  --,st.AREA_NUM
+  --,st.AREA_DESCR
+  --,st.RGN_NUM
+  --,st.RGN_DESCR
+  --,st.CNTRY_CD_2_DGT_ISO
+  --,st.OWNR_TYPE_CD
   ,ca.FSCL_YR_NUM
-  ,ca.FSCL_QTR_IN_YR_NUM
-  ,ca.FSCL_PER_IN_YR_NUM
+  --,ca.FSCL_QTR_IN_YR_NUM
+  --,ca.FSCL_PER_IN_YR_NUM
   ,ca.FSCL_WK_IN_YR_NUM
 ;
 
