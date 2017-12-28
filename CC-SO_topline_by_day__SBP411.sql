@@ -5,8 +5,8 @@ SELECT
     --,MIN(c.CAL_WK_IN_YR_NUM) AS cal_week_min
     --,MAX(c.CAL_WK_IN_YR_NUM) AS cal_week
     --,c.DAY_IN_CAL_YR_NUM AS cal_day
-    c.FSCL_WK_IN_YR_NUM AS fscl_week
-    ,c.FSCL_YR_NUM AS fscl_year
+    c.FSCL_PER_IN_YR_NUM
+    ,c.FSCL_YR_NUM
     --,c.FSCL_WK_BEG_DT
     --,c.CAL_WK_BEG_DT
 /*
@@ -66,11 +66,11 @@ FROM APPDWH.AFT_CV_SRVY_RSPNS ce
 
   INNER JOIN APPDWH.ADT_CAL c
     ON TRUNC(ce.TRANS_DTM) = c.CAL_DT
-      AND TRUNC(ce.TRANS_DTM) >= '01-JAN-15'
+      --AND TRUNC(ce.TRANS_DTM) >= '01-JAN-16'
     --AND c.CAL_WK_IN_YR_NUM >= 1
     --AND c.CAL_YR_NUM >= 2015
     --AND c.FSCL_WK_IN_YR_NUM >= 1
-    --AND c.FSCL_YR_NUM >= 2015
+    AND c.FSCL_YR_NUM >= 2017
       
   INNER JOIN APPDWH.DDM_RETAIL_ORG_STORE_DIST org
     ON ce.STORE_NUM = org.STORE_NUM
@@ -85,7 +85,7 @@ GROUP BY
     --,c.DAY_ABBR_NM
     --c.CAL_WK_IN_YR_NUM
     --c.CAL_YR_NUM
-    c.FSCL_WK_IN_YR_NUM
+    c.FSCL_PER_IN_YR_NUM
     ,c.FSCL_YR_NUM
 ;
 
@@ -130,3 +130,6 @@ GROUP BY
     ,c.FSCL_YR_NUM
 ;
 
+
+SELECT * FROM APPDWH.ADT_CAL c
+    WHERE (c.CAL_DT = '05-MAY-17' OR c.CAL_DT = '14-MAY-17')
