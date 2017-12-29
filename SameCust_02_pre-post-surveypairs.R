@@ -16,11 +16,15 @@ library(patchwork)
 scus <- read.csv("O:/CoOp/CoOp194_PROReportng&OM/Julie/SameCust_02_pre-post-surveypairsFULL.csv")
 setDT(scus)
 
+#subset to only same-store and AMs (N=1,270,137 to 451,045 to 239,809)
+scus <- scus[STORE_NUM_1==STORE_NUM_2]
+scus <- scus[TRANS_HR_1>=4&TRANS_HR_1<=12&TRANS_HR_2>=4&TRANS_HR_2<=12]
+
 #create a copy
 #scust <- copy(scust)
 
 #convert 9's to NA
-listofvars <- colnames(scust)[c(5:13,22:30)]
+listofvars <- colnames(scus)[c(7:15,26:34)]
 scus[, (listofvars) := lapply(.SD, function(x) ifelse(x==9,NA,x)), .SDcols=listofvars]
 
 #remove outliers: people who spent over $1000 in times 1 or 2...
@@ -1450,16 +1454,16 @@ xlabel <- "Delta in CC score between time 1 and time 2,\n(net of delta for 'same
 ylabel <- "Delta in post-15-day spending-per-person\nbetween time 1 and 2 (USD)"
 xlabels <- c("-6pts","-5pts","-4pts","-3pts","-2pts","-1pt",
              "+1pt","+2pts","+3pts","+4pts","+5pts","+6pts")
-temp[ccdelgrp!="07-same"]
+pdata <- temp[ccdelgrp!="07-same"]
 px <- temp[ccdelgrp!="07-same",ccdelgrp]
 py <- temp[ccdelgrp!="07-same",sppdeltafromsame]
 
 ggplot(data = pdata, aes(x = px, y = py)) +
   geom_bar(stat="identity", width = 0.7, fill="lightgray", colour="black") + theme_bw() +
-  scale_x_discrete(label=xlabels) + ylim(c(-1.25,1.25)) +
+  scale_x_discrete(label=xlabels) + ylim(c(-1.5,1)) +
   xlab(xlabel) + ylab(ylabel) + ggtitle(tlabel) +
   theme(axis.text.x = element_text(face = "bold", size = 12)) +
-  geom_text(size = 3, aes(label=round(py,2),y=0), stat= "identity", vjust = -1)
+  geom_text(size = 3, aes(label=round(py,2),y=0), stat= "identity", vjust = -2.25)
 
 # ##visits per person
 # tlabel <- "15-Day Visits-per-Person Delta by Change in CC Score"
@@ -1518,7 +1522,7 @@ xlabel <- "Delta in CC score between time 1 and time 2,\n(net of delta for 'same
 ylabel <- "Delta in post-15-day spending-per-person\nbetween time 1 and 2 (USD)"
 xlabels <- c("-6pts","-5pts","-4pts","-3pts","-2pts","-1pt",
              "+1pt","+2pts","+3pts","+4pts","+5pts","+6pts")
-temp[ccdelgrp!="07-same"]
+pdata <- temp[ccdelgrp!="07-same"]
 px <- temp[ccdelgrp!="07-same",ccdelgrp]
 py <- temp[ccdelgrp!="07-same",sppdeltafromsame]
 nvar <- temp[ccdelgrp!="07-same",n]
@@ -1569,7 +1573,7 @@ xlabel <- "Delta in Speed score between time 1 and time 2,\n(net of delta for 's
 ylabel <- "Delta in post-15-day spending-per-person\nbetween time 1 and 2 (USD)"
 xlabels <- c("-6pts","-5pts","-4pts","-3pts","-2pts","-1pt",
              "+1pt","+2pts","+3pts","+4pts","+5pts","+6pts")
-temp[spdelgrp!="07-same"]
+pdata <- temp[spdelgrp!="07-same"]
 px <- temp[spdelgrp!="07-same",spdelgrp]
 py <- temp[spdelgrp!="07-same",sppdeltafromsame]
 nvar <- temp[spdelgrp!="07-same",n]
@@ -1620,7 +1624,7 @@ xlabel <- "Delta in Above & Beyond score between time 1 and time 2,\n(net of del
 ylabel <- "Delta in post-15-day spending-per-person\nbetween time 1 and 2 (USD)"
 xlabels <- c("-6pts","-5pts","-4pts","-3pts","-2pts","-1pt",
              "+1pt","+2pts","+3pts","+4pts","+5pts","+6pts")
-temp[abdelgrp!="07-same"]
+pdata <- temp[abdelgrp!="07-same"]
 px <- temp[abdelgrp!="07-same",abdelgrp]
 py <- temp[abdelgrp!="07-same",sppdeltafromsame]
 nvar <- temp[abdelgrp!="07-same",n]
@@ -1672,7 +1676,7 @@ xlabel <- "Delta in Accuracy score between time 1 and time 2,\n(net of delta for
 ylabel <- "Delta in post-15-day spending-per-person\nbetween time 1 and 2 (USD)"
 xlabels <- c("-6pts","-5pts","-4pts","-3pts","-2pts","-1pt",
              "+1pt","+2pts","+3pts","+4pts","+5pts","+6pts")
-temp[acdelgrp!="07-same"]
+pdata <- temp[acdelgrp!="07-same"]
 px <- temp[acdelgrp!="07-same",acdelgrp]
 py <- temp[acdelgrp!="07-same",sppdeltafromsame]
 nvar <- temp[acdelgrp!="07-same",n]
@@ -1724,7 +1728,7 @@ xlabel <- "Delta in Beverage score between time 1 and time 2,\n(net of delta for
 ylabel <- "Delta in post-15-day spending-per-person\nbetween time 1 and 2 (USD)"
 xlabels <- c("-6pts","-5pts","-4pts","-3pts","-2pts","-1pt",
              "+1pt","+2pts","+3pts","+4pts","+5pts","+6pts")
-temp[bevdelgrp!="07-same"]
+pdata <- temp[bevdelgrp!="07-same"]
 px <- temp[bevdelgrp!="07-same",bevdelgrp]
 py <- temp[bevdelgrp!="07-same",sppdeltafromsame]
 nvar <- temp[bevdelgrp!="07-same",n]
@@ -1775,7 +1779,7 @@ xlabel <- "Delta in Food score between time 1 and time 2,\n(net of delta for 'sa
 ylabel <- "Delta in post-15-day spending-per-person\nbetween time 1 and 2 (USD)"
 xlabels <- c("-6pts","-5pts","-4pts","-3pts","-2pts","-1pt",
              "+1pt","+2pts","+3pts","+4pts","+5pts","+6pts")
-temp[fooddelgrp!="07-same"]
+pdata <- temp[fooddelgrp!="07-same"]
 px <- temp[fooddelgrp!="07-same",fooddelgrp]
 py <- temp[fooddelgrp!="07-same",sppdeltafromsame]
 nvar <- temp[fooddelgrp!="07-same",n]
@@ -1826,7 +1830,7 @@ xlabel <- "Delta in Cleanliness score between time 1 and time 2,\n(net of delta 
 ylabel <- "Delta in post-15-day spending-per-person\nbetween time 1 and 2 (USD)"
 xlabels <- c("-6pts","-5pts","-4pts","-3pts","-2pts","-1pt",
              "+1pt","+2pts","+3pts","+4pts","+5pts","+6pts")
-temp[clndelgrp!="07-same"]
+pdata <- temp[clndelgrp!="07-same"]
 px <- temp[clndelgrp!="07-same",clndelgrp]
 py <- temp[clndelgrp!="07-same",sppdeltafromsame]
 nvar <- temp[clndelgrp!="07-same",n]
@@ -1877,7 +1881,7 @@ xlabel <- "Delta in Worth score between time 1 and time 2,\n(net of delta for 's
 ylabel <- "Delta in post-15-day spending-per-person\nbetween time 1 and 2 (USD)"
 xlabels <- c("-6pts","-5pts","-4pts","-3pts","-2pts","-1pt",
              "+1pt","+2pts","+3pts","+4pts","+5pts","+6pts")
-temp[wpdelgrp!="07-same"]
+pdata <- temp[wpdelgrp!="07-same"]
 px <- temp[wpdelgrp!="07-same",wpdelgrp]
 py <- temp[wpdelgrp!="07-same",sppdeltafromsame]
 nvar <- temp[wpdelgrp!="07-same",n]

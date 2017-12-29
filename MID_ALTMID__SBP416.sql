@@ -22,13 +22,13 @@ FROM
 WHERE seq = 1
 */
 
+/* Counts SR transactions associated with MID/ALTMID combinations */
 SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
-    WHERE ac.ALT_MRCHT_ID IN (1090,1559) AND ac.MRCHT_ID IN (97056000003)
-    AND ac.TRANS_DT > '19-DEC-17' -- Past timeline
+    WHERE ac.ALT_MRCHT_ID IN (23113) AND ac.MRCHT_ID IN (97076400001)
+    AND ac.TRANS_DT > '29-NOV-17' 
     GROUP BY ac.MRCHT_ID, ac.ALT_MRCHT_ID
 
 
-SELECT ac.GUID_ID, COUNT(*) AS TRANS_COUNT FROM APPCA.F_CARD ac
-  WHERE ac.TRANS_DT >= '03-JUL-17' AND ac.TRANS_DT <= '01-OCT-17'
-  AND ac.SVC_TRANS_CTGY = 'Redemption'
-  GROUP BY ac.GUID_ID
+
+
+

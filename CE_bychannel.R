@@ -29,7 +29,7 @@ ch[is.na(ch[,FY17Q4_TRAN]), FY17Q4_TRAN := 1]
 #ch[,Q2_6 := NULL]
 
 #recode variables as binary TB
-listofvars <- c("FY17Q4_TRANS",grep("Q",colnames(ch),value=T)[-1])
+listofvars <- grep("Q",colnames(ch),value=T)
 #ch[, (listofvars[1]) := lapply(.SD, function(x) ifelse(x==5,1,0)), .SDcols=listofvars[1]]
 #ch[, (listofvars[-1]) := lapply(.SD, function(x) ifelse(x==7,1,0)), .SDcols=listofvars[-1]]
 
@@ -42,25 +42,25 @@ ch <- na.omit(ch)
 matall <- round(cor(ch[, (listofvars), with=F],method="spearman",use="pairwise.complete.obs"),3)
 matall <- as.data.table(matall)
 matall <- cbind(listofvars,matall)
-matall <- setorder(matall,-Q1)
+#matall <- setorder(matall,-FY17Q4_TRAN)
 
 #correlation matrix for ranking
 matmop <- round(cor(ch[ORD_MTHD_CD=='MOP', (listofvars), with=F],method="spearman",use="pairwise.complete.obs"),3)
 matmop <- as.data.table(matmop)
 matmop <- cbind(listofvars,matmop)
-matmop <- setorder(matmop,-Q1)
+matmop <- setorder(matmop,-FY17Q4_TRAN)
 
 #correlation matrix for ranking
 matcafe <- round(cor(ch[ORD_MTHD_CD=='CAFE', (listofvars), with=F],method="spearman",use="pairwise.complete.obs"),3)
 matcafe <- as.data.table(matcafe)
 matcafe <- cbind(listofvars,matcafe)
-matcafe <- setorder(matcafe,-Q1)
+matcafe <- setorder(matcafe,-FY17Q4_TRAN)
 
 #correlation matrix for ranking
 matotw <- round(cor(ch[ORD_MTHD_CD=='OTW', (listofvars), with=F],method="spearman",use="pairwise.complete.obs"),3)
 matotw <- as.data.table(matotw)
 matotw <- cbind(listofvars,matotw)
-matotw <- setorder(matotw,-Q1)
+matotw <- setorder(matotw,-FY17Q4_TRAN)
 
 #RWA
 #all channels
