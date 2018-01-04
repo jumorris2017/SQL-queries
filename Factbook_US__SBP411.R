@@ -9,22 +9,22 @@ library(dplyr)
 library(ggplot2)
 library(flipRegression)
 library(lattice)
+library(ppcor)
 #library(RColorBrewer)
 
 #slide #11
 #load data
 #part 1
-p1 <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/Comps_by_store_US_pt1_3mo.csv")
+p1 <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/Comps_by_store_US_pt1.csv")
 #part 2
-p2 <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/Comps_by_store_US_pt2_3mo.csv")
+p2 <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/Comps_by_store_US_pt2.csv")
 
 #rename merge id columns to match
-setnames(p1,c("STORE_NUM"),
-         c("STORE_NUMBER"))
+setnames(p1,c("STORE_NUM"),c("STORE_NUMBER"))
 #change store number and date values to numeric from characters
 p1[, STORE_NUMBER := lapply(.SD, as.numeric), .SDcols = "STORE_NUMBER"]
 #merge by store number, month, and year
-pfull <- Reduce(function(x,y) {merge(x,y,by=c("STORE_NUMBER","FSCL_WK_IN_YR_NUM","FSCL_YR_NUM"),all.x=TRUE)}, list(p1,p2))
+pfull <- Reduce(function(x,y) {merge(x,y,by=c("STORE_NUMBER","FSCL_QTR_IN_YR_NUM","FSCL_YR_NUM"),all.x=TRUE)}, list(p1,p2))
 
 #aggregate for Q4
 # pagg <- pfull[, lapply(.SD, sum, na.rm=T), .SDcols=c("Q2_2_RESPONSE_TOTAL","Q2_2_TB_CNT",
@@ -34,15 +34,15 @@ pfull <- Reduce(function(x,y) {merge(x,y,by=c("STORE_NUMBER","FSCL_WK_IN_YR_NUM"
 #aggregate for rolling 3
 pagg <- pfull[, lapply(.SD, sum, na.rm=T), .SDcols=c("Q2_2_RESPONSE_TOTAL","Q2_2_TB_CNT",
                                                      "QuarterlySales","LYQuarterlySales","CustTrans","day_count"),
-              by=c("STORE_NUMBER")]
-pagg[, FSCL_YR_NUM := "Rolling 3"]
+              by=c("STORE_NUMBER","FSCL_YR_NUM")]
+# pagg[, FSCL_YR_NUM := "Rolling 3"]
 
 #calculate CC  top box score
 pagg[, Q2_2_TB_SCORE := round(Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL,4)]
 
 #calculate TSDs
 pagg[, TSD := (CustTrans)/day_count]
-pagg <- pagg[TSD>=700&TSD<=1200]
+pagg <- pagg[TSD>=500&TSD<=1000]
 pagg[, CustTrans := NULL];pagg[, day_count := NULL]
 
 #drop if stores don't have LYQuarterlySales
@@ -56,9 +56,8 @@ pagg <- pagg[comps>=-.25&comps<=.25]
 #keep only FY17Q4
 #pagg <- pagg[FSCL_QTR_IN_YR_NUM==4&FISCAL_YEAR_NUMBER==2017]
 
-#
+#library(ppcor)
 pcor.test(pagg[,comps],pagg[,Q2_2_TB_SCORE],pagg[,TSD],method="pearson")
-
 
 #split by cc
 prob = c(1/4, 2/4, 3/4, 1)
@@ -93,7 +92,9 @@ pagg[, Q2_2_TB_SCORE := Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL]
 pagg <- setorder(pagg,ccquartile)
 pagg <- cbind(pagg,t(temp)[2:5])
 setnames(pagg,"V2","cc_q_value")
-
+#make more presentable
+pagg[, (colnames(pagg)[4:6]) := lapply(.SD, function(x) round((x*100),1)), .SDcols=colnames(pagg)[4:6]]
+pagg[, Q2_2_RESPONSE_TOTAL := NULL]; pagg[, Q2_2_TB_CNT := NULL]
 
 # #split by comp
 # prob = c(1/4, 2/4, 3/4, 1)

@@ -67,8 +67,10 @@ hr[, timecpaststart := floor(timecpast)]
 hr[, hourvec := paste0("c(",timecpaststart,":",timecpastend,")")]
 
 
-#create empty matrix of stores, days, and hour changes
-storeids <- unique(hr[,STORE_NUMBER])
+# #create empty matrix of stores, days, and hour changes
+# storeids <- unique(hr[,STORE_NUMBER])
+#restrict to those who DROP hours
+storeids <- unique(hr[negchange==1,STORE_NUMBER])
 hours <- c(1:24)
 days <- c(1:7)
 newData <- expand.grid(storeids, days, hours)
@@ -105,30 +107,50 @@ hrsub[, minhr := NULL]; hrsub[, maxhr := NULL]
 hrsub <- na.omit(hrsub, cols="flag")
 
 
-#bring in comp - FY 17 Q4 COMP by hour
-hrcomp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/Hours_of_Op_Changes_FY17Q4comp.csv")
+# #bring in comp - FY 17 Q4 COMP by hour
+# hrcomp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/Hours_of_Op_Changes_FY17Q4comp.csv")
+# #convert sale hour to useable number
+# hrcomp[, SALE_HOUR := SALE_HOUR/10000]
+# #swing wide by hour
+# hrcomp <- dcast.data.table(hrcomp, SALE_HOUR + STORE_NUMBER + DAYOFWEEK ~ FSCL_YR_NUM, value.var="SALESAMT")
+# setnames(hrcomp,c("2016","2017","SALE_HOUR"),c("lysalesamt","salesamt","hours"))
+# #keep only stores in hrsub
+# hrcomp <- hrcomp[STORE_NUMBER %in% storeids]
+# #merge
+# temp <- left_join(hrsub,hrcomp,by=c("STORE_NUMBER","DAYOFWEEK","hours"))
+# setDT(temp)
+# #aggregate by store
+# temp2 <- temp[salesamt>0&lysalesamt>0, list(salesamt = sum(salesamt,na.rm=T),
+#                     lysalesamt = sum(lysalesamt,na.rm=T),
+#                     comp = (sum(salesamt,na.rm=T)-sum(lysalesamt,na.rm=T))/sum(lysalesamt,na.rm=T)),
+#                     by="STORE_NUMBER"]
+# temp3 <- temp[salesamt>0&lysalesamt>0, list(salesamt = sum(salesamt,na.rm=T),
+#                                             lysalesamt = sum(lysalesamt,na.rm=T),
+#                                             comp = (sum(salesamt,na.rm=T)-sum(lysalesamt,na.rm=T))/sum(lysalesamt,na.rm=T))]
+
+#bring in transactions from prior year during the reduction period
+hrtrans <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/Hours_of_Op_Changes_FW7-11_FY17.csv")
 #convert sale hour to useable number
-hrcomp[, SALE_HOUR := SALE_HOUR/10000]
-#swing wide by hear
-hrcomp <- dcast.data.table(hrcomp, SALES_HOUR + STORE_NUMBER + DAYOFWEEK ~ FSCL_YR_NUM, value.var="SALESAMT")
-setnames(hrcomp,c("SALESAMT_2017","SALESAMT_2016","SALE_HOUR"),c("salesamt","lysalesamt","hours"))
+hrtrans[, hours := SALE_HOUR/10000]
+# #swing wide by hear
+# hrtrans <- dcast.data.table(hrtrans, SALE_HOUR + STORE_NUMBER + DAYOFWEEK ~ FSCL_YR_NUM, value.var="SALESAMT")
+# setnames(hrtrans,c("2016","2017","SALE_HOUR"),c("lysalesamt","salesamt","hours"))
 #keep only stores in hrsub
-hrcomp <- hrcomp[STORE_NUMBER %in% storeids]
+hrtrans <- hrtrans[STORE_NUMBER %in% storeids]
 #merge
-temp <- left_join(hrsub,hrcomp,by=c("STORE_NUMBER","DAYOFWEEK","HOURS"))
+temp <- left_join(hrsub,hrtrans,by=c("STORE_NUMBER","DAYOFWEEK","hours"))
 setDT(temp)
 #aggregate by store
-temp2 <- temp[, list(salesamt = sum(salesamt,na.rm=T),
-                    lysalesamt = sum(lysalesamt,na.rm=T),
-                    comp = (sum(salesamt,na.rm=T)-sum(lysalesamt,na.rm=T))/sum(lysalesamt,na.rm=T)),
-                    by="STORE_NUMBER"]
+temp2 <- temp[TRANS>0, list(TRANS = sum(TRANS,na.rm=T)), by="STORE_NUMBER"]
+temp3 <- temp[TRANS>0, list(TRANS = sum(TRANS,na.rm=T),
+                             meanTRANS = mean(TRANS,na.rm=T))]
 
 
 
-
-
-
-
+############################
+############################
+############################
+############################
 
 
 #load data - calendar year 2016

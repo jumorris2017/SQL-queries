@@ -13,12 +13,20 @@ library(scales)
 library(patchwork)
 
 #load data
-scus <- read.csv("O:/CoOp/CoOp194_PROReportng&OM/Julie/SameCust_02_pre-post-surveypairsFULL.csv")
+scus <- read.csv("O:/CoOp/CoOp194_PROReportng&OM/Julie/SameCust_02_pre-post-surveypairs.csv")
 setDT(scus)
 
-#subset to only same-store and AMs (N=1,270,137 to 451,045 to 239,809)
-scus <- scus[STORE_NUM_1==STORE_NUM_2]
-scus <- scus[TRANS_HR_1>=4&TRANS_HR_1<=12&TRANS_HR_2>=4&TRANS_HR_2<=12]
+# #subset to only same-store and AMs (N=801,175 to 193,342)
+# length(unique(scus[TRANS_DTM_2new>="2017-10-01 PDT"&TRANS_DTM_2new<"2017-11-01 PDT",GUID_USER_ID]))
+# scus <- scus[STORE_NUM_1==STORE_NUM_2&TRANS_HR_1>=4&TRANS_HR_1<=12&TRANS_HR_2>=4&TRANS_HR_2<=12]
+
+#change date format
+scus[, TRANS_DTM_1new := strptime(TRANS_DTM_1, "%Y-%m-%d %H:%M:%S")]
+scus[, TRANS_DTM_2new := strptime(TRANS_DTM_2, "%Y-%m-%d %H:%M:%S")]
+
+#date delta
+scus[, date_delta := TRANS_DTM_1new - TRANS_DTM_2new]
+mean(scus[,date_delta])
 
 #create a copy
 #scust <- copy(scust)
@@ -1457,13 +1465,14 @@ xlabels <- c("-6pts","-5pts","-4pts","-3pts","-2pts","-1pt",
 pdata <- temp[ccdelgrp!="07-same"]
 px <- temp[ccdelgrp!="07-same",ccdelgrp]
 py <- temp[ccdelgrp!="07-same",sppdeltafromsame]
-
+nvar <- temp[ccdelgrp!="07-same",n]
 ggplot(data = pdata, aes(x = px, y = py)) +
   geom_bar(stat="identity", width = 0.7, fill="lightgray", colour="black") + theme_bw() +
   scale_x_discrete(label=xlabels) + ylim(c(-1.5,1)) +
   xlab(xlabel) + ylab(ylabel) + ggtitle(tlabel) +
   theme(axis.text.x = element_text(face = "bold", size = 12)) +
-  geom_text(size = 3, aes(label=round(py,2),y=0), stat= "identity", vjust = -2.25)
+  geom_text(size = 3, aes(label=round(py,2),y=0), stat= "identity", vjust = -2.25) +
+  geom_text(size = 2.5, aes(label=paste0("n=",comma(nvar)),y=0), stat= "identity", vjust = 1.5)
 
 # ##visits per person
 # tlabel <- "15-Day Visits-per-Person Delta by Change in CC Score"

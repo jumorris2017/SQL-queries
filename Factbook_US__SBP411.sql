@@ -9,8 +9,8 @@ SELECT
       --,c.FSCL_PER_IN_YR_NUM
       ,c.FSCL_YR_NUM
       --,d.DRIVE_THRU_IND
-      --,c.FSCL_QTR_IN_YR_NUM
-      ,c.FSCL_WK_IN_YR_NUM
+      ,c.FSCL_QTR_IN_YR_NUM
+      --,c.FSCL_WK_IN_YR_NUM
 
   -- Total valid response counts by question
   ,COUNT(CASE WHEN ce.QSTN_ID = 'Q2_2' THEN ce.QSTN_ID END) AS Q2_2_Response_Total
@@ -22,9 +22,9 @@ FROM APPDWH.AFT_CV_SRVY_RSPNS ce
 
   INNER JOIN APPDWH.ADT_CAL c
     ON TRUNC(ce.TRANS_DTM) = c.CAL_DT
-      --AND c.FSCL_YR_NUM = 2018
-      --AND c.FSCL_QTR_IN_YR_NUM = 4
-      AND TRUNC(ce.TRANS_DTM) BETWEEN '01-SEP-17' AND '30-NOV-17'
+      AND c.FSCL_YR_NUM = 2018
+      AND c.FSCL_QTR_IN_YR_NUM = 1
+      --AND TRUNC(ce.TRANS_DTM) BETWEEN '01-SEP-17' AND '30-NOV-17'
       
   INNER JOIN APPDWH.ADT_STORE d
     ON ce.STORE_NUM = d.STORE_NUM
@@ -42,8 +42,8 @@ GROUP BY
     --,c.FSCL_PER_IN_YR_NUM
     ,c.FSCL_YR_NUM
     --,d.DRIVE_THRU_IND
-    --,c.FSCL_QTR_IN_YR_NUM
-    ,c.FSCL_WK_IN_YR_NUM
+    ,c.FSCL_QTR_IN_YR_NUM
+    --,c.FSCL_WK_IN_YR_NUM
 ;
 
 /* part 2 -- quartlery comps */
@@ -55,21 +55,22 @@ GROUP BY
         --, ROUND((SUM(f.NET_DISCOUNTED_SALES_AMT) - SUM(f.NET_DISCOUNTED_SALES_LY_AMT)) / SUM(f.NET_DISCOUNTED_SALES_LY_AMT),4) AS salescomp
         , SUM(f.CUST_TRANS_CNT) "CustTrans"
         , SUM(f.ACTIVE_STORE_DAY_CNT) "day_count"
-        , ca.FSCL_WK_IN_YR_NUM
+        , ca.FSCL_QTR_IN_YR_NUM
     FROM APPBUS.DFT_INTL_STORE_DAY_VW f      
         INNER JOIN APPDWH.DDM_RETAIL_ORG_STORE_DIST org
             ON f.STORE_NUMBER = org.STORE_NUM
             AND org.DIV_ORG_LVL_ID IN (3,6,106)  -- US CO stores
         INNER JOIN APPDWH.ADT_CAL ca
             ON f.BUSINESS_DATE = ca.CAL_DT
-            --AND ca.FSCL_YR_NUM = 2018
-            AND f.BUSINESS_DATE BETWEEN '01-SEP-17' AND '30-NOV-17'
+            AND ca.FSCL_YR_NUM = 2018
+            AND ca.FSCL_QTR_IN_YR_NUM = 1
+            --AND f.BUSINESS_DATE BETWEEN '01-SEP-17' AND '30-NOV-17'
             --AND ca.FSCL_WK_IN_YR_NUM BETWEEN 41 AND 52
         INNER JOIN APPBUS.AFT_STORE_COMP_PER_VW comp
             ON f.STORE_NUMBER = comp.STORE_NUMBER
             AND ca.FSCL_PER_BEG_DT = comp.FISCAL_PERIOD_BEGIN_DATE
             AND COMP_CODE = 'Y'
-    GROUP BY f.STORE_NUMBER, ca.FSCL_YR_NUM, ca.FSCL_WK_IN_YR_NUM
+    GROUP BY f.STORE_NUMBER, ca.FSCL_YR_NUM, ca.FSCL_QTR_IN_YR_NUM
  ;
 
 

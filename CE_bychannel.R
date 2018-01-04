@@ -64,7 +64,7 @@ matotw <- setorder(matotw,-FY17Q4_TRAN)
 
 #RWA
 #all channels
-rwa1 <- Regression(FY17Q4_TRANS ~ Q2_1 + Q2_2 + Q2_3 + Q2_4 + Q2_5 + Q2_7, data=ch,
+rwa1 <- Regression(FY17Q4_TRAN ~ Q2_1 + Q2_2 + Q2_3 + Q2_4 + Q2_5 + Q2_7, data=ch,
                    output = "Relative Importance Analysis", importance.absolute = T)
 slices <- rwa1$relative.importance$importance
 lbls <- c("Speed","Customer Connection","Above and Beyond","Accuracy","Beverage Taste","Cleanliness")
@@ -76,7 +76,7 @@ pie(slices,labels = lbls, cex=0.75,
     cex.main=1)
 
 #cafe
-rwa2 <- Regression(FY17Q4_TRANS ~ Q2_1 + Q2_2 + Q2_3 + Q2_4 + Q2_5 + Q2_7, data=ch[ORD_MTHD_CD=='CAFE'],
+rwa2 <- Regression(FY17Q4_TRAN ~ Q2_1 + Q2_2 + Q2_3 + Q2_4 + Q2_5 + Q2_7, data=ch[ORD_MTHD_CD=='CAFE'],
                    output = "Relative Importance Analysis", importance.absolute = T)
 slices <- rwa2$relative.importance$importance
 lbls <- c("Speed","Customer Connection","Above and Beyond","Accuracy","Beverage Taste","Cleanliness")
@@ -88,7 +88,7 @@ pie(slices,labels = lbls, cex=0.75,
     cex.main=1)
 
 #mop
-rwa3 <- Regression(FY17Q4_TRANS ~ Q2_1 + Q2_2 + Q2_3 + Q2_4 + Q2_5 + Q2_7, data=ch[ORD_MTHD_CD=='MOP'],
+rwa3 <- Regression(FY17Q4_TRAN ~ Q2_1 + Q2_2 + Q2_3 + Q2_4 + Q2_5 + Q2_7, data=ch[ORD_MTHD_CD=='MOP'],
                    output = "Relative Importance Analysis", importance.absolute = T)
 slices <- rwa3$relative.importance$importance
 lbls <- c("Speed","Customer Connection","Above and Beyond","Accuracy","Beverage Taste","Cleanliness")
@@ -100,7 +100,7 @@ pie(slices,labels = lbls, cex=0.75,
     cex.main=1)
 
 #otw
-rwa4 <- Regression(FY17Q4_TRANS ~ Q2_1 + Q2_2 + Q2_3 + Q2_4 + Q2_5 + Q2_7, data=ch[ORD_MTHD_CD=='OTW'],
+rwa4 <- Regression(FY17Q4_TRAN ~ Q2_1 + Q2_2 + Q2_3 + Q2_4 + Q2_5 + Q2_7, data=ch[ORD_MTHD_CD=='OTW'],
                    output = "Relative Importance Analysis", importance.absolute = T)
 slices <- rwa4$relative.importance$importance
 lbls <- c("Speed","Customer Connection","Above and Beyond","Accuracy","Beverage Taste","Cleanliness")
