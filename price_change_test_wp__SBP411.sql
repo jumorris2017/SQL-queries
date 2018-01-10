@@ -1,6 +1,7 @@
 
 SELECT
     ce.STORE_NUM
+    ,ce.GUID_USER_ID
     ,tr.TRANSACTION_NUMBER
     ,it.ITEM_NUMBER
     ,c.CAL_DT AS cal_date
@@ -17,9 +18,9 @@ FROM APPDWH.AFT_CV_SRVY_RSPNS ce
 
   INNER JOIN APPDWH.ADT_CAL c
     ON TRUNC(ce.TRANS_DTM) = c.CAL_DT
-      AND TRUNC(ce.TRANS_DTM) >= '01-JAN-17'
-    --AND c.FSCL_PER_IN_YR_NUM = 3
-    --AND (c.FSCL_YR_NUM = 2018)
+      --AND TRUNC(ce.TRANS_DTM) >= '01-JAN-17'
+    AND c.FSCL_PER_IN_YR_NUM > 39 AND c.FSCL_PER_IN_YR_NUM < 43
+    AND c.FSCL_YR_NUM = 2016
       
   INNER JOIN APPDWH.DDM_RETAIL_ORG_STORE_DIST org
     ON ce.STORE_NUM = org.STORE_NUM
@@ -27,6 +28,7 @@ FROM APPDWH.AFT_CV_SRVY_RSPNS ce
   INNER JOIN APPBUS.USR_ATTRIBUTES_STORE cb
     ON ce.STORE_NUM = cb.STORE_NUMBER
       AND cb.CBSA_CODE = 14460 -- Boston area
+      AND ce.STORE_NUM = 807 -- For Testing
       
   INNER JOIN APPBUS.AFT_POS_INTL_LINE_ITEM_VW tr
     ON TRUNC(ce.TRANS_DTM) = tr.BUSINESS_DATE
@@ -40,6 +42,7 @@ WHERE ce.RSPNS_ID <> '9'  -- rspns_id = 9 for unanswered questions
 
 GROUP BY
     ce.STORE_NUM
+    ,ce.GUID_USER_ID
     ,tr.TRANSACTION_NUMBER
     ,it.ITEM_NUMBER
     ,c.CAL_DT
@@ -47,4 +50,5 @@ GROUP BY
     ,c.FSCL_YR_NUM
 ;
 
-
+SELECT * FROM APPBUS.USR_ATTRIBUTES_STORE cb
+where cb.CBSA_CODE = 14460 -- Boston area

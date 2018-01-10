@@ -66,7 +66,7 @@ p[, Job_Key := NULL]
 p_pvec <- unique(p[,pn])
 
 #same partner data
-sp <- spss.get("//starbucks/amer/portal/Departments/WMO/Marketing Research/New Q drive/Partner Insights/Partner Perspectives/Research/Partner Experience Study/12_Wave9_Retail (Nov 2017)/02 Data/Q1 FY18 Retail PES US CLEAN.sav", force.single=T, use.value.labels=F, to.data.frame=T)
+sp <- spss.get("//starbucks/amer/portal/Departments/WMO/Marketing Research/New Q drive/Partner Insights/Partner Perspectives/Research/Partner Experience Study/12_Wave9_Retail (Nov 2017)/02 Data/US/Q1 FY18 Retail PES US CLEAN.sav", force.single=T, use.value.labels=F, to.data.frame=T)
 #remove variable labels
 for (i in 1:ncol(sp)) {
   z<-class(sp[[i]])
@@ -818,7 +818,11 @@ print(plot3)
 
 
 
-temp <- copy(fullw)
+#dcast
+n <- fullwk[, c("fywkpost","thours","cc_score"), with=F]
+temp <- dcast.data.table(n, thours ~ factor(fywkpost), value.var="cc_score")
+
+temp <- copy(n)
 temp[, cc_delta := cc_score_1-cc_score_0]
 temp[, q1_delta := q1_score_1-q1_score_0]
 temp[, q2a_delta := q2a_score_1-q2a_score_0]

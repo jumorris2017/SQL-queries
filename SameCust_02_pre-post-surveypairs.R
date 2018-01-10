@@ -770,7 +770,7 @@ nvar <- temp[,n]
 ggplot(data = pdata, aes(x = factor(px), y = py)) +
   geom_bar(stat="identity", width = 0.7, fill="lightgray", colour="black") + theme_bw() +
   scale_x_discrete(label=xlabels) + 
-  ylim(c(-1,0.5)) +
+  ylim(c(-0.5,1)) +
   xlab(xlabel) + ylab(ylabel) + ggtitle(tlabel) +
   theme(axis.text.x = element_text(face = "bold", size = 12)) +
   geom_text(size = 4.5, aes(label=round(py,2),y=0), stat= "identity", vjust = -1) +
@@ -1072,11 +1072,16 @@ temp <- scust[!is.na(ccdelgrp)]
 t.test(temp[ccdelgrp==0,(SPEND_POST_15D_2-SPEND_POST_15D_1)],temp[ccdelgrp==1,(SPEND_POST_15D_2-SPEND_POST_15D_1)],conf.level = 0.99)
 #assess differences in behavior across *groups* of people based on ccdelgrp
 temp <- temp[!is.na(ccdelgrp), list(n = .N,
-                                    avg_spend_post_1 = sum(SPEND_POST_15D_1,na.rm=T)/.N,
-                                    avg_spend_post_2 = sum(SPEND_POST_15D_2,na.rm=T)/.N),
-             by=c("ccdelgrp")]
+            avg_spend_post_1 = sum(SPEND_POST_15D_1,na.rm=T)/.N,
+            avg_spend_post_2 = sum(SPEND_POST_15D_2,na.rm=T)/.N,
+            sd_spend_post_1 = sd(SPEND_POST_15D_1),
+            sd_spend_post_2 = sd(SPEND_POST_15D_2)),
+        by=c("ccdelgrp")]
 #calculate spend per person delta
 temp[, sppdelta := avg_spend_post_2 - avg_spend_post_1]
+temp[, sppvp := (((n-1)*(sd_spend_post_1^2) + (n-1)*(sd_spend_post_2^2)))/((n-1)+(n-1))]
+temp[, sppse := sqrt(sppvp*(1/n + 1/n))]
+
 ##spend per person
 tlabel <- "15-Day Spend-per-Person Delta by Change in CC Score"
 xlabel <- "Delta in CC score between time 1 and time 2"
@@ -1085,11 +1090,13 @@ xlabels <- c("Remained in TB","Fell from TB")
 pdata <- temp
 px <- temp[,ccdelgrp]
 py <- temp[,sppdelta]
+se <- temp[,sppse]
 nvar <- temp[,n]
 ggplot(data = pdata, aes(x = factor(px), y = py)) +
   geom_bar(stat="identity", width = 0.7, fill="lightgray", colour="black") + theme_bw() +
+  geom_errorbar(aes(x = factor(px), ymin=py-se, ymax=py+se), width=0.1, size=0.5, color="blue") +
   scale_x_discrete(label=xlabels) + 
-  ylim(c(-1,0.5)) +
+  ylim(c(-0.5,1)) +
   xlab(xlabel) + ylab(ylabel) + ggtitle(tlabel) +
   theme(axis.text.x = element_text(face = "bold", size = 12)) +
   geom_text(size = 4.5, aes(label=round(py,2),y=0), stat= "identity", vjust = -1) +
@@ -1468,11 +1475,11 @@ py <- temp[ccdelgrp!="07-same",sppdeltafromsame]
 nvar <- temp[ccdelgrp!="07-same",n]
 ggplot(data = pdata, aes(x = px, y = py)) +
   geom_bar(stat="identity", width = 0.7, fill="lightgray", colour="black") + theme_bw() +
-  scale_x_discrete(label=xlabels) + ylim(c(-1.5,1)) +
+  scale_x_discrete(label=xlabels) + ylim(c(-1.5,1.5)) +
   xlab(xlabel) + ylab(ylabel) + ggtitle(tlabel) +
   theme(axis.text.x = element_text(face = "bold", size = 12)) +
-  geom_text(size = 3, aes(label=round(py,2),y=0), stat= "identity", vjust = -2.25) +
-  geom_text(size = 2.5, aes(label=paste0("n=",comma(nvar)),y=0), stat= "identity", vjust = 1.5)
+  geom_text(size = 3, aes(label=round(py,2),y=0), stat= "identity", vjust = -1.5) +
+  geom_text(size = 2.5, aes(label=paste0("n=",comma(nvar)),y=0), stat= "identity", vjust = 2.25)
 
 # ##visits per person
 # tlabel <- "15-Day Visits-per-Person Delta by Change in CC Score"

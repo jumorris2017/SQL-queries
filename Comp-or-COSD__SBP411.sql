@@ -104,9 +104,9 @@ GROUP BY
 /* export as "Comps_by_store_US_pt2.csv" */
  SELECT ca.FSCL_YR_NUM
         , f.STORE_NUMBER
-        , SUM(f.NET_DISCOUNTED_SALES_AMT) "QuarterlySales"
-        , SUM(f.NET_DISCOUNTED_SALES_LY_AMT) "LYQuarterlySales"
-        , ROUND((SUM(f.NET_DISCOUNTED_SALES_AMT) - SUM(f.NET_DISCOUNTED_SALES_LY_AMT)) / SUM(f.NET_DISCOUNTED_SALES_LY_AMT),4) AS salescomp
+        --, SUM(f.NET_DISCOUNTED_SALES_AMT) "QuarterlySales"
+        --, SUM(f.NET_DISCOUNTED_SALES_LY_AMT) "LYQuarterlySales"
+        --, ROUND((SUM(f.NET_DISCOUNTED_SALES_AMT) - SUM(f.NET_DISCOUNTED_SALES_LY_AMT)) / SUM(f.NET_DISCOUNTED_SALES_LY_AMT),4) AS salescomp
         , SUM(f.CUST_TRANS_CNT) "CustTrans"
         , SUM(f.ACTIVE_STORE_DAY_CNT) "day_count"
         --, ca.FSCL_WK_IN_YR_NUM
@@ -117,8 +117,8 @@ GROUP BY
             AND org.DIV_ORG_LVL_ID IN (3,6,106)  -- US CO stores
         INNER JOIN APPDWH.ADT_CAL ca
             ON f.BUSINESS_DATE = ca.CAL_DT
-            AND ca.FSCL_YR_NUM = 2017
-            AND ca.FSCL_QTR_IN_YR_NUM = 4
+            AND ca.FSCL_YR_NUM = 2018
+            AND ca.FSCL_QTR_IN_YR_NUM = 1
             --AND f.BUSINESS_DATE BETWEEN '01-SEP-17' AND '30-NOV-17'
             --AND ca.FSCL_WK_IN_YR_NUM BETWEEN 41 AND 52
         INNER JOIN APPBUS.AFT_STORE_COMP_PER_VW comp
@@ -128,3 +128,53 @@ GROUP BY
     GROUP BY f.STORE_NUMBER, ca.FSCL_YR_NUM, ca.FSCL_QTR_IN_YR_NUM
  ;
 
+
+
+/*customer transaction count by hour (and daypart indicator)*/
+/*export as "cc-so_bystore-daypart_FY18Q1-TSDhourly.csv"*/ -- for comp
+/*export as "cc-so_bystore-daypart_FY17Q1-TSDhourly.csv"*/ -- for comp
+/*export as "cc-so_bystore-daypart_FY17Q1-FY18Q1-TSDhourly.csv"*/ -- for COSD trend
+/* for Brooke/Kelly 1/8/17 */
+/* use with "CE_bydaypart_byquarter.R */
+SELECT ca.FSCL_YR_NUM
+  ,ca.FSCL_QTR_IN_YR_NUM
+  ,f.SALE_HOUR 
+  ,f.STORE_NUMBER
+  ,SUM(f.CUTOMER_TRANSACTION_COUNT) AS "TRANS"
+      ,(CASE WHEN f.SALE_HOUR  < 110000 THEN 1 -- am
+        WHEN f.SALE_HOUR  >=110000 AND f.SALE_HOUR  < 140000 THEN 2 -- midday
+        WHEN f.SALE_HOUR  >=140000 AND f.SALE_HOUR  < 160000 THEN 3 -- pm
+        WHEN f.SALE_HOUR  >=160000 THEN 4 -- evening
+        ELSE 0 
+        END) AS DAY_PART
+FROM APPBUS.AFT_POS_INTL_HDR_VW f
+    INNER JOIN APPDWH.ADT_CAL ca
+        ON f.BUSINESS_DATE = ca.CAL_DT
+  AND ((ca.FSCL_YR_NUM = 2018 AND ca.FSCL_QTR_IN_YR_NUM = 1) OR ca.FSCL_YR_NUM = 2017)
+ AND f.COUNTRY_CODE = 'US'
+GROUP BY 
+  ca.FSCL_YR_NUM
+  ,ca.FSCL_QTR_IN_YR_NUM
+  ,f.SALE_HOUR
+  ,f.STORE_NUMBER
+
+
+/*active store day count*/
+/*export as "cc-so_bystore-daypart_FY18Q1-TSDdaycount.csv"*/ -- for comp
+/*export as "cc-so_bystore-daypart_FY17Q1-TSDdaycount.csv"*/ -- for comp
+/*export as "cc-so_bystore-daypart_FY17Q1-FY18Q1-TSDdaycount.csv"*/ -- for COSD trend
+/* for Brooke/Kelly 1/8/17 */
+/* use with "CE_bydaypart_byquarter.R */
+SELECT ca.FSCL_YR_NUM
+  ,ca.FSCL_QTR_IN_YR_NUM
+  ,t.STORE_NUMBER
+  ,COUNT(t.ACTIVE_STORE_DAY_CNT) "day_count"
+FROM APPBUS.DFT_INTL_STORE_DAY_VW t  
+    INNER JOIN APPDWH.ADT_CAL ca
+        ON t.BUSINESS_DATE = ca.CAL_DT
+  AND ((ca.FSCL_YR_NUM = 2018 AND ca.FSCL_QTR_IN_YR_NUM = 1) OR ca.FSCL_YR_NUM = 2017)
+ AND t.COUNTRY = 'US'
+GROUP BY 
+  ca.FSCL_YR_NUM
+  ,ca.FSCL_QTR_IN_YR_NUM
+  ,t.STORE_NUMBER

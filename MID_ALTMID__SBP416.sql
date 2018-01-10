@@ -1,12 +1,27 @@
 /* Pulls the ALTMIDs associated with MIDs */
 /* For Cambridge requests */
 
---SELECT * FROM APPEXT.SVC_MRCHT_LS_MAP 
 
+
+/* Counts SR transactions associated with MID/ALTMID combinations */
 SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
-    WHERE ac.MRCHT_ID IN (97267400000,97268500006,97385500004) 
-    AND ac.TRANS_DT > '17-NOV-17' -- Past month
+    WHERE ( (ac.ALT_MRCHT_ID IN (29954) AND ac.MRCHT_ID IN (97056000003 ))
+      OR (ac.ALT_MRCHT_ID IN (48068) AND ac.MRCHT_ID IN (97400700718))
+      OR (ac.ALT_MRCHT_ID IN (48053) AND ac.MRCHT_ID IN (97400700718))
+      OR (ac.ALT_MRCHT_ID IN (48067) AND ac.MRCHT_ID IN (97400700718)) )
+    AND ac.TRANS_DT > '07-DEC-17' 
     GROUP BY ac.MRCHT_ID, ac.ALT_MRCHT_ID
+
+
+/* Laste date received SR transactions associated with MID/ALTMID combinations */
+SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, TRUNC(ac.TRANS_DT) FROM APPCA.F_CARD ac
+    WHERE ac.ALT_MRCHT_ID IN (6893) AND ac.MRCHT_ID IN (97400700437)
+        --AND ac.TRANS_DT > '03-JUN-17' 
+    ORDER BY TRUNC(ac.TRANS_DT) DESC 
+
+
+
+
 
 /*
 SELECT MRCHT_ID, ALT_MRCHT_ID, TRANS_DT
@@ -21,14 +36,3 @@ FROM
 ) 
 WHERE seq = 1
 */
-
-/* Counts SR transactions associated with MID/ALTMID combinations */
-SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
-    WHERE ac.ALT_MRCHT_ID IN (23113) AND ac.MRCHT_ID IN (97076400001)
-    AND ac.TRANS_DT > '29-NOV-17' 
-    GROUP BY ac.MRCHT_ID, ac.ALT_MRCHT_ID
-
-
-
-
-

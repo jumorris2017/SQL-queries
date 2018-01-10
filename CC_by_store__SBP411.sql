@@ -87,3 +87,7 @@ FROM APPDWH.AFT_CV_SRVY_RSPNS ce
 WHERE ce.RSPNS_ID <> '9'  -- rspns_id = 9 for unanswered questions
   AND ce.QSTN_ID NOT IN ('Q1','Q11') -- these questions are not in Customer Connection or Store Operations scores
 ;
+
+
+
+SELECT * FROM APPBUS.SDT_LOC_MSTR_HRS_VW

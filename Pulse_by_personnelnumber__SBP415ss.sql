@@ -63,3 +63,4 @@ SELECT
     ,DATEPART(week, a.surveyRespDate)
     ,j.Job_Key
 
+
