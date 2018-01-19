@@ -1,0 +1,159 @@
+/* Pulls number of CE survey respondents that fall into different frequency buckets */
+
+WITH bl AS
+(select b.FSCL_YR_NUM
+  ,b.FSCL_PER_IN_YR_NUM
+  ,COUNT(a.GUID_ID) AS USER_COUNT
+  ,count(*) AS TRANS
+  ,SUM(sq.TOTAL_TB) AS TB_COUNT
+  ,SUM(sq.TOTAL_RSPNS) AS RSPNS_COUNT
+
+from APPCA.F_SVC_FIN_TRANS a
+
+inner join APPCA.D_CAL b 
+  on a.BUS_DT = b.CAL_DT
+
+inner join APPCA.D_SVC_TRANS_TYPE c 
+  on a.SVC_TRANS_TYPE_KEY = c.SVC_TRANS_TYPE_KEY
+
+inner join (SELECT
+  sr.GUID_USER_ID
+  ,SUM(CASE  WHEN sr.RSPNS_ID = '7' THEN 1 ELSE 0 END) AS TOTAL_TB
+  ,SUM(CASE  WHEN sr.QSTN_ID = 'Q2_2' THEN 1 ELSE 0 END) AS TOTAL_RSPNS
+  ,ca.FSCL_YR_NUM
+  ,ca.FSCL_PER_IN_YR_NUM
+FROM APPOTHER.AFT_CV_SRVY_RSPNS sr
+
+JOIN APPCA.D_CAL ca
+  ON ca.CAL_DT = TRUNC(sr.TRANS_DTM)
+  
+JOIN APPCA.D_STORE_VERS st
+  ON sr.STORE_NUM = st.STORE_NUM
+    AND st.CURRENT_FLG = 'Y'
+    AND st.OWNR_TYPE_CD = 'CO'
+    AND st.CNTRY_CD_2_DGT_ISO = 'US'
+  
+JOIN APPCA.F_POS_LINE_ITEM pi
+  ON TO_CHAR(sr.TRANS_DTM, 'YYYYMMDD') || TRIM(TO_CHAR(sr.STORE_NUM, '000000'))
+      || TRIM(TO_CHAR(SUBSTR(sr.RGSTR_NUM, -1, 2),'00')) || sr.TRANS_ID = pi.TRANS_ID
+    AND pi.CNTRY_CD = 'US'
+    AND pi.BUS_DT >= '01-SEP-15'
+    
+JOIN APPCA.D_POS_LINE_ITEM_TRANS_TYPE tt
+  ON pi.POS_LINE_ITEM_TRANS_TYPE_KEY = tt.POS_LINE_ITEM_TRANS_TYPE_KEY
+
+WHERE ca.FSCL_YR_NUM = 2018 AND ca.FSCL_PER_IN_YR_NUM = 3
+  AND sr.QSTN_ID IN ('Q2_2')
+  AND sr.STORE_NUM = 5798 -- for testing
+  AND sr.RSPNS_ID <> '9'
+GROUP BY 
+  sr.GUID_USER_ID
+  ,ca.FSCL_YR_NUM
+  ,ca.FSCL_PER_IN_YR_NUM
+  ) sq
+  
+ON a.GUID_ID = sq.GUID_USER_ID
+  AND b.FSCL_YR_NUM = sq.FSCL_YR_NUM
+  AND b.FSCL_PER_IN_YR_NUM = sq.FSCL_PER_IN_YR_NUM
+
+where c.SVC_INTRNL_RQST_NM = 'Redemption' 
+  and b.FSCL_YR_NUM = 2018 and b.FSCL_PER_IN_YR_NUM = 3
+
+group by b.FSCL_YR_NUM
+  ,b.FSCL_PER_IN_YR_NUM
+  ,a.GUID_ID
+  ,sq.TOTAL_TB
+  ,sq.TOTAL_RSPNS) 
+SELECT 
+  bl.FSCL_YR_NUM
+  ,bl.FSCL_PER_IN_YR_NUM
+  ,bl.GUID_ID
+  ,bl.TRANS
+  ,bl.TOTAL_TB
+  ,bl.TOTAL_RSPNS
+  ,(CASE WHEN bl.TRANS <=5 THEN 1
+        WHEN bl.TRANS > 5 AND bl.TRANS <= 10 THEN 2
+        WHEN bl.TRANS > 10 AND bl.TRANS <= 15 THEN 3
+        WHEN bl.TRANS > 15 AND bl.TRANS <= 25 THEN 4
+        WHEN bl.TRANS > 26 THEN 5
+        ELSE 0
+        END) AS TRANS_GRP
+
+GROUP BY 
+  bl.FSCL_YR_NUM
+  ,bl.FSCL_PER_IN_YR_NUM
+  ,bl.GUID_ID
+  ,bl.TRANS
+  ,bl.TOTAL_TB
+  ,bl.TOTAL_RSPNS
+
+
+
+WITH bl AS
+(select b.FSCL_YR_NUM
+  ,b.FSCL_PER_IN_YR_NUM
+  ,a.GUID_ID
+  ,count(*) AS TRANS
+  ,SUM(sq.TOTAL_TB) AS TB_COUNT
+  ,SUM(sq.TOTAL_RSPNS) AS RSPNS_COUNT
+
+from APPCA.F_SVC_FIN_TRANS a
+
+inner join APPCA.D_CAL b 
+  on a.BUS_DT = b.CAL_DT
+
+inner join APPCA.D_SVC_TRANS_TYPE c 
+  on a.SVC_TRANS_TYPE_KEY = c.SVC_TRANS_TYPE_KEY
+
+inner join (SELECT
+  sr.GUID_USER_ID
+  ,SUM(CASE  WHEN sr.RSPNS_ID = '7' THEN 1 ELSE 0 END) AS TOTAL_TB
+  ,SUM(CASE  WHEN sr.QSTN_ID = 'Q2_2' THEN 1 ELSE 0 END) AS TOTAL_RSPNS
+  ,ca.FSCL_YR_NUM
+  ,ca.FSCL_PER_IN_YR_NUM
+FROM APPOTHER.AFT_CV_SRVY_RSPNS sr
+
+JOIN APPCA.D_CAL ca
+  ON ca.CAL_DT = TRUNC(sr.TRANS_DTM)
+  
+JOIN APPCA.D_STORE_VERS st
+  ON sr.STORE_NUM = st.STORE_NUM
+    AND st.CURRENT_FLG = 'Y'
+    AND st.OWNR_TYPE_CD = 'CO'
+    AND st.CNTRY_CD_2_DGT_ISO = 'US'
+
+WHERE ((ca.FSCL_YR_NUM = 2018 and ca.FSCL_PER_IN_YR_NUM <=3) OR (ca.FSCL_YR_NUM = 2017 and ca.FSCL_PER_IN_YR_NUM > 3))
+  AND sr.QSTN_ID IN ('Q2_2')
+  AND sr.STORE_NUM = 5798 -- for testing
+  AND sr.RSPNS_ID <> '9'
+GROUP BY 
+  sr.GUID_USER_ID
+  ,ca.FSCL_YR_NUM
+  ,ca.FSCL_PER_IN_YR_NUM
+  ) sq
+  
+ON a.GUID_ID = sq.GUID_USER_ID
+  AND b.FSCL_YR_NUM = sq.FSCL_YR_NUM
+  AND b.FSCL_PER_IN_YR_NUM = sq.FSCL_PER_IN_YR_NUM
+
+where c.SVC_INTRNL_RQST_NM = 'Redemption' 
+  and ((b.FSCL_YR_NUM = 2018  and b.FSCL_PER_IN_YR_NUM <=3) OR (b.FSCL_YR_NUM = 2017 and b.FSCL_PER_IN_YR_NUM > 3))
+
+group by b.FSCL_YR_NUM
+  ,b.FSCL_PER_IN_YR_NUM
+  ,a.GUID_ID) 
+
+SELECT 
+  bl.FSCL_YR_NUM
+  ,bl.FSCL_PER_IN_YR_NUM
+  ,count(bl.GUID_ID) AS USER_COUNT
+  ,bl.TRANS
+  ,sum(bl.TB_COUNT) AS TB_COUNT
+  ,sum(bl.RSPNS_COUNT) AS RSPSN_COUNT
+FROM bl
+GROUP BY 
+  bl.FSCL_YR_NUM
+  ,bl.FSCL_PER_IN_YR_NUM
+  ,bl.TRANS
+ORDER BY
+  bl.TRANS

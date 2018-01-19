@@ -360,6 +360,7 @@ full <- na.omit(full,cols="TRANScompavg")
 cor(full[,tbscore_q2_2],full[,TRANScompavg],use="complete.obs")
 pcor.test(full[,tbscore_q2_2],full[,TRANScompavg],full[,tsd],method="pearson")
 
+
 #limit by tsd
 full <- full[tsd>=0&tsd<=850]
 #make fake variable for merge
@@ -423,6 +424,68 @@ write.xlsx(fullx,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/transcomp_by_cc_quar
 # write.xlsx(fullagg,"O:/CoOp/CoOp194_PROReportng&OM/Julie/DayPart_CC-SO_FY18Q1.xlsx")
 
 
+
+#### BY REGION
+
+#PART 2: load data - transactions by day/part
+#tsdhr <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_bystore-daypart_FY17Q1-FY18Q1-TSDhourly.csv")
+tsdhr <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_bystore-daypart_FY17Q1-FY18Q1-TSDhourly_andregion.csv")
+
+#aggregate by daypart and FY/FQ
+tsdhr <- tsdhr[, list(TRANS = sum(TRANS,na.rm=T)), 
+               by=c("FSCL_YR_NUM","FSCL_QTR_IN_YR_NUM","DAY_PART","STORE_NUMBER","RGN_ORG_LVL_DESCR")]
+
+#create an indicator for unique dayparts by store and FY/FQ
+dp <- tsdhr %>% 
+  group_by(STORE_NUMBER,FSCL_YR_NUM,FSCL_QTR_IN_YR_NUM,RGN_ORG_LVL_DESCR) %>%
+  count(DAY_PART) %>% mutate(pct = round(n/sum(n),4))
+setDT(dp)
+
+#merge into daypart transaction data
+tsdhr <- left_join(tsdhr,dp,by=c("FSCL_YR_NUM","FSCL_QTR_IN_YR_NUM","DAY_PART","STORE_NUMBER","RGN_ORG_LVL_DESCR"))
+setDT(tsdhr)
+
+#PART 3: load data - day count
+#tsddc <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_bystore-daypart_FY17Q1-FY18Q1-TSDdaycount.csv")
+tsddc <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_bystore-daypart_FY17Q1-FY18Q1-TSDdaycount_andregion.csv")
+
+#merge into daypart transaction data
+tsdhr <- left_join(tsdhr,tsddc,by=c("FSCL_YR_NUM","FSCL_QTR_IN_YR_NUM","STORE_NUMBER","RGN_ORG_LVL_DESCR"))
+setDT(tsdhr)
+
+#multiply day_count by percent of day_count
+tsdhr[, daycount_scaled := day_count*pct]
+
+#reduce columns
+tsdhr <- tsdhr[, c("FSCL_YR_NUM","FSCL_QTR_IN_YR_NUM","TRANS","STORE_NUMBER","DAY_PART","daycount_scaled","RGN_ORG_LVL_DESCR"), with=F]
+
+#calculate COSD by daypart and store
+tsdhr[, cosd := round(TRANS/daycount_scaled,1)]
+tsdhr[mapply(is.infinite, tsdhr)] <- NA
+#merge together CC-SO with tsdhr
+full <- left_join(cc,tsdhr,by=c("STORE_NUMBER","DAY_PART","FSCL_YR_NUM","FSCL_QTR_IN_YR_NUM"))
+setDT(full)
+
+#aggregate at day_part level
+fullagg <- full[, lapply(.SD,sum,na.rm=T), by=c("DAY_PART","FSCL_YR_NUM","FSCL_QTR_IN_YR_NUM","RGN_ORG_LVL_DESCR")]
+fullagg[, cosd := round(TRANS/daycount_scaled,1)]
+#loop through to create top box scores
+tbcols <- grep("TOTAL_TB",colnames(fullagg),value=T)
+trcols <- grep("TOTAL_RSPNS",colnames(fullagg),value=T)
+for (i in c(1:7)){
+  fullagg[, paste0("tbscore_q2_",i)] <- fullagg[, tbcols[[i]], with=F] / fullagg[, trcols[[i]], with=F]
+}
+#calculate SO
+sovars <- paste0("tbscore_q2_",c(1,3,4,5,6,7))
+fullagg[, tbscore_so := rowMeans(fullagg[, c(sovars), with=F])]
+#remove store var
+fullagg[, STORE_NUMBER := NULL]
+#keep only variables needed
+fullagg <- fullagg[, c("DAY_PART","FSCL_YR_NUM","FSCL_QTR_IN_YR_NUM","tbscore_q2_2","tbscore_q2_1","tbscore_so","cosd","RGN_ORG_LVL_DESCR"), with=F]
+#setnames(fullagg,"tbscore_q2_2","tbscore_cc")
+fullagg <- setorder(fullagg,RGN_ORG_LVL_DESCR,FSCL_YR_NUM,FSCL_QTR_IN_YR_NUM,DAY_PART)
+#write file
+write.xlsx(fullagg,"O:/CoOp/CoOp194_PROReportng&OM/Julie/DayPart_CC-SO_FY17Q1-FY18Q1_andregion.xlsx")
 
 
 

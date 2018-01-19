@@ -3,6 +3,7 @@ SELECT
     ,c.DAY_IN_CAL_WK_NUM AS calday
     ,c.HLDY_IND AS holidayflag
     ,c.CAL_YR_NUM AS calyear
+    ,c.CAL_MNTH_IN_YR_NUM AS calmonth
     ,c.CAL_WK_IN_YR_NUM AS calweek
     ,c.DAY_IN_CAL_YR_NUM AS caldayyear
 
@@ -38,9 +39,10 @@ GROUP BY
     ,c.DAY_IN_CAL_WK_NUM
     ,c.HLDY_IND
     ,c.CAL_YR_NUM
+    ,c.CAL_MNTH_IN_YR_NUM
     ,c.CAL_WK_IN_YR_NUM
     ,c.DAY_IN_CAL_YR_NUM
 ORDER BY
     c.CAL_DT
-;
+
 

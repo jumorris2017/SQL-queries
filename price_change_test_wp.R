@@ -5,11 +5,13 @@
 library(data.table)
 library(ggplot2)
 
-#load data
+##STEP 1: pull STORE_NUMS where the price change went into effect
 #list of stores in Boston test
 bos <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/price_change_test_wp_boston_stores.csv")
 
-#price change launched FW 41 FY 16
-#pull data in for the first 30 days following the FW 41 FY 16 launch (first survey post launch)
-#get list of customers
-#pull their most recent before that launch
+##STEP 2: pull GUIDs for customers who visited those STORE_NUMS (2 weeks prior FY16FW41) and (2 weeks post FY16FW41)
+###and purchased the beverage of choice (americano tall)
+#keep one WP score from pre- and one WP score from post-launch for each GUID
+##last from pre, and first from post
+
+##STEP 3: calculate average and TB % for WP pre- and post-launches

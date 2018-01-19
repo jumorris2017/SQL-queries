@@ -6,6 +6,7 @@ library(data.table)
 library(ggplot2)
 library(forecast)
 library(zoo)
+library(prophet)
 set.seed(98115)
 
 #load data
@@ -15,12 +16,38 @@ cct <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_topline_by_day.csv")
 setnames(cct, tolower(names(cct)))
 
 #update variable classes
-cct[, caldate := as.Date(caldate, "%d-%b-%y")]
+cct[, caldate := as.Date(caldate, format = "%d-%b-%y")]
 cct[, ccscore := as.numeric(ccscore)]
 
 #recode holiday as binary
 cct[holidayflag=='N', holiday := 0];cct[holidayflag=='Y', holiday := 1]
 cct[, holidayflag := NULL]
+
+#create dataset for prophet
+pcc <- copy(cct)
+setnames(pcc,c("caldate","ccscore"),c("ds","y"))
+
+#prep holidays
+pcchol <- copy(cct)
+pcchol <- pcchol[, c("caldate","holiday")]
+setnames(pcchol,c("caldate"),c("ds"))
+pcchol[, holiday := as.character(holiday)]
+
+#prophet forecast model
+pr <- prophet(pcc, growth="linear", daily.seasonality=TRUE, weekly.seasonality=TRUE, holidays=pcchol)
+#dataframe returned from mode
+fcst <- predict(pr,pcc)
+#plot model
+prophet_plot_components(pr, fcst, uncertainty = TRUE, plot_cap = TRUE,
+                        weekly_start = 0, yearly_start = 0)
+#predict forward
+future <- make_future_dataframe(pr, periods = 185)
+forecast <- predict(pr, future)
+plot(pr, forecast, xlab="Calendar Date", ylab="Customer Connection")
+#sample from posterior preditive distribution
+predictive_samples(pr, pcc)
+
+
 
 # #plot trends
 # #set labels
@@ -60,33 +87,14 @@ cct[, holidayflag := NULL]
 # ## plot it
 # plot(fore)
 
-#create dataset for prophet
-pcc <- copy(cct)
-setnames(pcc,c("caldate","ccscore"),c("ds","y"))
 
-pcchol <- copy(cct)
-pcchol <- pcchol[, c("caldate","holiday")]
-setnames(pcchol,c("caldate"),c("ds"))
-pcchol[, holiday := as.character(holiday)]
-
-#prophet forecast model
-pr <- prophet(pcc, growth="linear", daily.seasonality=TRUE, weekly.seasonality=TRUE, holidays=pcchol)
-#dataframe returned from mode
-fcst <- predict(pr,pcc)
-#plot model
-prophet_plot_components(pr, fcst, uncertainty = TRUE, plot_cap = TRUE,
-                        weekly_start = 0, yearly_start = 0)
-#predict forward
-future <- make_future_dataframe(pr, periods = 365)
-forecast <- predict(pr, future)
-plot(pr, forecast, xlab="Calendar Date", ylab="Customer Connection")
-#sample from posterior preditive distribution
-predictive_samples(pr, pcc)
-
-
-
-
-
+#compare to Tableau dashes
+#average across months
+cctm <- cct[, list(ccscore = mean(ccscore,na.rm=T)), by=c("calmonth","calyear")]
+plot1 <- ggplot() +
+  geom_line(data=cctm, aes(x=calmonth, y=ccscore, group=factor(calyear), colour=factor(calyear))) +
+  scale_y_continuous(limits=c(0,.35))
+print(plot1)
 
 
 
