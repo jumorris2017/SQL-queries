@@ -6,19 +6,62 @@ library(foreign)
 library(data.table)
 library(ggplot2)
 library(tidyverse)
+library(eeptools) #age_calc
+library(xlsx)
+
+#set up functions
+#calculate mode
+calculate_mode <- function(x) {
+  uniqx <- unique(x)
+  uniqx[which.max(tabulate(match(x, uniqx)))]
+}
+#convert SPSS date format into R date format
+spss2date <- function(x) as.Date(x/86400, origin = "1582-10-14")
 
 ##read in SPSS dataset (as data.frame) and set as data.table
 db <- read.spss("//starbucks/amer/portal/Departments/WMO/Marketing Research/New Q drive/Partner Insights/Partner Perspectives/Research/Partner Life Survey/Data/Partner Life_FinalData_CLEAN_1.sav", to.data.frame=TRUE)
 setDT(db)
 setnames(db,"PanelistIdQuestion","RID")
+##read in tenure data
+tenuredt <- read.csv("//starbucks/amer/portal/Departments/WMO/Marketing Research/New Q drive/Partner Insights/Partner Perspectives/Research/Partner Life Survey/Data/partner_tenure.csv", fileEncoding="UTF-8-BOM")
+setDT(tenuredt)
+#subset tenuredt to only active PartnerIDs for recoding, pre-mergin
+pids <- unique(db[,PartnerID])
+tenuredt <- tenuredt[PartnerID %in% pids]
+#convert serial date format into R date format
+tenuredt[, (names(select(tenuredt,contains("date")))) := lapply(.SD, function(x) excel_numeric_to_date(as.numeric(as.character(x), date_system = "modern"))),
+         .SDcols = names(select(tenuredt,contains("date")))]
+#merge in tenure data
+db <- left_join(db,tenuredt,by="PartnerID")
+setDT(db)
 
 #keep only baristas
 db <- db[Store_Role=="Barista"]
 
+#read in daypart data
+dp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/partner_domdaypart.csv")
+setnames(dp,"PRTNR_NUM","PartnerID")
+
+#recalcualate PM_DOM as necessary
+dp[, earlyam_prp := EARLYAM_SHIFTS/SHIFTS_WORKED]
+dp[, am_prp := AM_SHIFTS/SHIFTS_WORKED]
+dp[, midday_prp := MIDDAY_SHIFTS/SHIFTS_WORKED]
+dp[, pm_prp := PM_SHIFTS/SHIFTS_WORKED]
+dp[, latepm_prp := LATEPM_SHIFTS/SHIFTS_WORKED]
+#calculate dominate daypart
+dp[, DOM := colnames(.SD)[max.col(.SD, ties.method="first")], .SDcols = c("earlyam_prp","am_prp","midday_prp","pm_prp","latepm_prp")]
+#rename so they're ordered
+dp[DOM=="earlyam_prp", DOM := "1-EarlyAM"]
+dp[DOM=="am_prp", DOM := "2-AM"]
+dp[DOM=="midday_prp", DOM := "3-Midday"]
+dp[DOM=="pm_prp", DOM := "4-PM"]
+dp[DOM=="latepm_prp", DOM := "5-LatePM"]
+
 #merge in daypart data
-dp <- read.csv()
 db <- left_join(db,dp,by=c("PartnerID"))
 setDT(db)
+#drop baristas missing dominant daypart info
+db <- na.omit(db,cols="DOM")
 
 ##outliers
 #drop values where Sbux hours worked is 0 or >60 (same as Q1_7_Starbucks_Hours_Worked_Remove_Outliers)
@@ -27,6 +70,10 @@ db[Q1_7_Starbucks_Hours_Worked>0 & Q1_7_Starbucks_Hours_Worked<61, sbux_hours_wo
 ##start using the SAP question. only for hoursly; all managers *should* be 40 
 ##(not what is reported; most managers report >40 hours)
 db[role==3, SAP_Avg_Hrs_per_Wk_8_weeks := 40]
+
+#convert SPSS date format into R date format
+db[, dateofbirth := spss2date(db[,DOB])]
+db[, age := floor(age_calc(db[,dateofbirth], units = "years"))]
 
 ###recode binary variables as 0/1
 #more than one job (yes=1;no=0)
@@ -83,39 +130,194 @@ db[Q8_7_Education_Level=="Trade/technical school degree", educ_bach := 0]
 db[Q8_7_Education_Level=="Other", educ_bach := NA]
 db[Q8_7_Education_Level=="Prefer not to answer", educ_bach := NA]
 
+###which factors most influenced decision to join starbucks
+#brand reputation
+db[Q3_1_Reason_Join_Brandreputation=="Not Selected", reason_join_brand := 0]
+db[Q3_1_Reason_Join_Brandreputation=="Selected", reason_join_brand := 1]
+#career advancement
+db[Q3_1_Reason_Join_Careeradvancementopportunities=="Not Selected", reason_join_career := 0]
+db[Q3_1_Reason_Join_Careeradvancementopportunities=="Selected", reason_join_career := 1]
+#company culture
+db[Q3_1_Reason_Join_Companyculture=="Not Selected", reason_join_culture := 0]
+db[Q3_1_Reason_Join_Companyculture=="Selected", reason_join_culture := 1]
+#flexible schedule
+db[Q3_1_Reason_Join_Flexibilityofschedule=="Not Selected", reason_join_flex_sched := 0]
+db[Q3_1_Reason_Join_Flexibilityofschedule=="Selected", reason_join_flex_sched := 1]
+#health coverage
+db[Q3_1_Reason_Join_Healthcoveragemedicaldentalvision=="Not Selected", reason_join_health := 0]
+db[Q3_1_Reason_Join_Healthcoveragemedicaldentalvision=="Selected", reason_join_health := 1]
+#connect with customers
+db[Q3_1_Reason_Join_Opportunitytoconnectwithcustomers=="Not Selected", reason_join_cust := 0]
+db[Q3_1_Reason_Join_Opportunitytoconnectwithcustomers=="Selected", reason_join_cust := 1]
+#other benefits
+db[Q3_1_Reason_Join_OtherfinancialbenefitsFutureRoast401kBeanStockS=="Not Selected", reason_join_oth_benef := 0]
+db[Q3_1_Reason_Join_OtherfinancialbenefitsFutureRoast401kBeanStockS=="Selected", reason_join_oth_benef := 1]
+#pay
+db[Q3_1_Reason_Join_Pay=="Not Selected", reason_join_pay := 0]
+db[Q3_1_Reason_Join_Pay=="Selected", reason_join_pay := 1]
+#CAP
+db[Q3_1_Reason_Join_StarbucksCollegeAchievementPlan=="Not Selected", reason_join_cap := 0]
+db[Q3_1_Reason_Join_StarbucksCollegeAchievementPlan=="Selected", reason_join_cap := 1]
+#mission and values
+db[Q3_1_Reason_Join_StarbucksMissionandValues=="Not Selected", reason_join_values := 0]
+db[Q3_1_Reason_Join_StarbucksMissionandValues=="Selected", reason_join_values := 1]
+#products and beverages
+db[Q3_1_Reason_Join_Starbucksproductsbeveragesfoodetc=="Not Selected", reason_join_prodbev := 0]
+db[Q3_1_Reason_Join_Starbucksproductsbeveragesfoodetc=="Selected", reason_join_prodbev := 1]
+#fun place
+db[Q3_1_Reason_Join_Starbucksseemedlikeafunplacetowork=="Not Selected", reason_join_fun := 0]
+db[Q3_1_Reason_Join_Starbucksseemedlikeafunplacetowork=="Selected", reason_join_fun := 1]
+#question 3_2: store choice (remove "other" for plotting)
+db[Q3_2_Store_Choice!="Other", store_choice_without_other := Q3_2_Store_Choice]
+db[Q3_2_Store_Choice=="Other", store_choice_without_other := NA]
+##agree with the following statements (completely agree = 1; else = 0)
+#be true self
+db[Q3_5_0=="Completely Agree", agree_true_self := 1]
+db[Q3_5_0=="Somewhat Agree", agree_true_self := 0]
+db[Q3_5_0=="Neither Agree nor Disagree", agree_true_self := 0]
+db[Q3_5_0=="Somewhat Disagree", agree_true_self := 0]
+db[Q3_5_0=="Completely Disagree", agree_true_self := 0]
+#recommend store as great place to work
+db[Q3_5_1=="Completely Agree", agree_reco_great := 1]
+db[Q3_5_1=="Somewhat Agree", agree_reco_great := 0]
+db[Q3_5_1=="Neither Agree nor Disagree", agree_reco_great := 0]
+db[Q3_5_1=="Somewhat Disagree", agree_reco_great := 0]
+db[Q3_5_1=="Completely Disagree", agree_reco_great := 0]
+#great team
+db[Q3_5_2=="Completely Agree", agree_great_team := 1]
+db[Q3_5_2=="Somewhat Agree", agree_great_team := 0]
+db[Q3_5_2=="Neither Agree nor Disagree", agree_great_team := 0]
+db[Q3_5_2=="Somewhat Disagree", agree_great_team := 0]
+db[Q3_5_2=="Completely Disagree", agree_great_team := 0]
+#make decisions
+db[Q3_5_3=="Completely Agree", agree_decisions := 1]
+db[Q3_5_3=="Somewhat Agree", agree_decisions := 0]
+db[Q3_5_3=="Neither Agree nor Disagree", agree_decisions := 0]
+db[Q3_5_3=="Somewhat Disagree", agree_decisions := 0]
+db[Q3_5_3=="Completely Disagree", agree_decisions := 0]
+#creatively problem solve
+db[Q3_5_4=="Completely Agree", agree_problem_solve := 1]
+db[Q3_5_4=="Somewhat Agree", agree_problem_solve := 0]
+db[Q3_5_4=="Neither Agree nor Disagree", agree_problem_solve := 0]
+db[Q3_5_4=="Somewhat Disagree", agree_problem_solve := 0]
+db[Q3_5_4=="Completely Disagree", agree_problem_solve := 0]
+##agree with the following items describing partners on your team  (completely agree = 1; else = 0)
+#are just like me
+db[Q3_8_Team_Diversity_0=="Completely Agree", team_like_me := 1]
+db[Q3_8_Team_Diversity_0=="Somewhat Agree", team_like_me := 0]
+db[Q3_8_Team_Diversity_0=="Neither Agree nor Disagree", team_like_me := 0]
+db[Q3_8_Team_Diversity_0=="Somewhat Disagree", team_like_me := 0]
+db[Q3_8_Team_Diversity_0=="Completely Disagree", team_like_me := 0]
+#bring diverse perspectives
+db[Q3_8_Team_Diversity_1=="Completely Agree", team_perspectives := 1]
+db[Q3_8_Team_Diversity_1=="Somewhat Agree", team_perspectives := 0]
+db[Q3_8_Team_Diversity_1=="Neither Agree nor Disagree", team_perspectives := 0]
+db[Q3_8_Team_Diversity_1=="Somewhat Disagree", team_perspectives := 0]
+db[Q3_8_Team_Diversity_1=="Completely Disagree", team_perspectives := 0]
+#spend time together outside of work
+db[Q3_8_Team_Diversity_2=="Completely Agree", team_spend_time := 1]
+db[Q3_8_Team_Diversity_2=="Somewhat Agree", team_spend_time := 0]
+db[Q3_8_Team_Diversity_2=="Neither Agree nor Disagree", team_spend_time := 0]
+db[Q3_8_Team_Diversity_2=="Somewhat Disagree", team_spend_time := 0]
+db[Q3_8_Team_Diversity_2=="Completely Disagree", team_spend_time := 0]
+#work well together
+db[Q3_8_Team_Diversity_3=="Completely Agree", team_work_well := 1]
+db[Q3_8_Team_Diversity_3=="Somewhat Agree", team_work_well := 0]
+db[Q3_8_Team_Diversity_3=="Neither Agree nor Disagree", team_work_well := 0]
+db[Q3_8_Team_Diversity_3=="Somewhat Disagree", team_work_well := 0]
+db[Q3_8_Team_Diversity_3=="Completely Disagree", team_work_well := 0]
+##agree with the following items describing partners on your team  (completely agree = 1; else = 0)
+#difficult
+db[Q4_1_Job_Characteristics_0=="Completely Agree", job_char_diff := 1]
+db[Q4_1_Job_Characteristics_0=="Somewhat Agree", job_char_diff := 0]
+db[Q4_1_Job_Characteristics_0=="Neither Agree nor Disagree", job_char_diff := 0]
+db[Q4_1_Job_Characteristics_0=="Somewhat Disagree", job_char_diff := 0]
+db[Q4_1_Job_Characteristics_0=="Completely Disagree", job_char_diff := 0]
+#fun
+db[Q4_1_Job_Characteristics_1=="Completely Agree", job_char_fun := 1]
+db[Q4_1_Job_Characteristics_1=="Somewhat Agree", job_char_fun := 0]
+db[Q4_1_Job_Characteristics_1=="Neither Agree nor Disagree", job_char_fun := 0]
+db[Q4_1_Job_Characteristics_1=="Somewhat Disagree", job_char_fun := 0]
+db[Q4_1_Job_Characteristics_1=="Completely Disagree", job_char_fun := 0]
+#stressful
+db[Q4_1_Job_Characteristics_2=="Completely Agree", job_char_stress := 1]
+db[Q4_1_Job_Characteristics_2=="Somewhat Agree", job_char_stress := 0]
+db[Q4_1_Job_Characteristics_2=="Neither Agree nor Disagree", job_char_stress := 0]
+db[Q4_1_Job_Characteristics_2=="Somewhat Disagree", job_char_stress := 0]
+db[Q4_1_Job_Characteristics_2=="Completely Disagree", job_char_stress := 0]
+#overwhelming
+db[Q4_1_Job_Characteristics_3=="Completely Agree", job_char_overwhelm := 1]
+db[Q4_1_Job_Characteristics_3=="Somewhat Agree", job_char_overwhelm := 0]
+db[Q4_1_Job_Characteristics_3=="Neither Agree nor Disagree", job_char_overwhelm := 0]
+db[Q4_1_Job_Characteristics_3=="Somewhat Disagree", job_char_overwhelm := 0]
+db[Q4_1_Job_Characteristics_3=="Completely Disagree", job_char_overwhelm := 0]
+#exciting
+db[Q4_1_Job_Characteristics_4=="Completely Agree", job_char_exciting := 1]
+db[Q4_1_Job_Characteristics_4=="Somewhat Agree", job_char_exciting := 0]
+db[Q4_1_Job_Characteristics_4=="Neither Agree nor Disagree", job_char_exciting := 0]
+db[Q4_1_Job_Characteristics_4=="Somewhat Disagree", job_char_exciting := 0]
+db[Q4_1_Job_Characteristics_4=="Completely Disagree", job_char_exciting := 0]
+#social
+db[Q4_1_Job_Characteristics_5=="Completely Agree", job_char_social := 1]
+db[Q4_1_Job_Characteristics_5=="Somewhat Agree", job_char_social := 0]
+db[Q4_1_Job_Characteristics_5=="Neither Agree nor Disagree", job_char_social := 0]
+db[Q4_1_Job_Characteristics_5=="Somewhat Disagree", job_char_social := 0]
+db[Q4_1_Job_Characteristics_5=="Completely Disagree", job_char_social := 0]
+
 #frequency table: binary & continuous variables
 tempbin <- db %>%
-  group_by(Store_Role) %>%
-  summarize(more_than_one_job = mean(more_than_one_job,na.rm=T),
-            marital_married_part = mean(marital_married_part,na.rm=T),
-            Kids_Flag = mean(Kids_Flag,na.rm=T),
-            student = mean(student,na.rm=T),
-            primary_income = mean(Q8_4_Primary_Income_Flag,na.rm=T),
-            sched_very_consistent = mean(sched_very_consistent,na.rm=T),
-            health_sbux = mean(health_sbux,na.rm=T),
-            educ_highschool = mean(educ_highschool,na.rm=T),
-            educ_bach = mean(educ_bach,na.rm=T),
-            hrs_min_selfrpt = round(min(sbux_hours_worked,na.rm=T),1),
-            hrs_max_selfrpt = round(max(sbux_hours_worked,na.rm=T),1),
+  group_by(DOM) %>%
+  summarize(n = n(), 
+            more_than_one_job = round(mean(more_than_one_job,na.rm=T),3),
+            age = round(mean(age,na.rm=T),1),
+            marital_married_part = round(mean(marital_married_part,na.rm=T),3),
+            Kids_Flag = round(mean(Kids_Flag,na.rm=T),3),
+            student = round(mean(student,na.rm=T),3),
+            primary_income = round(mean(Q8_4_Primary_Income_Flag,na.rm=T),3),
+            sched_very_consistent = round(mean(sched_very_consistent,na.rm=T),3),
+            health_sbux = round(mean(health_sbux,na.rm=T),3),
+            educ_highschool = round(mean(educ_highschool,na.rm=T),3),
+            educ_bach = round(mean(educ_bach,na.rm=T),3),
+            job_months = round(mean(job_months,na.rm=T),1),
             hrs_avg_selfrpt = round(mean(sbux_hours_worked,na.rm=T),1),
             hrs_med_selfrpt = round(median(sbux_hours_worked,na.rm=T),1),
-            hrs_min_SAP = round(min(SAP_Avg_Hrs_per_Wk_8_weeks,na.rm=T),1),
-            hrs_max_SAP = round(max(SAP_Avg_Hrs_per_Wk_8_weeks,na.rm=T),1),
             hrs_avg_SAP = round(mean(SAP_Avg_Hrs_per_Wk_8_weeks,na.rm=T),1),
-            hrs_med_SAP = round(median(SAP_Avg_Hrs_per_Wk_8_weeks,na.rm=T),1))
+            hrs_med_SAP = round(median(SAP_Avg_Hrs_per_Wk_8_weeks,na.rm=T),1),
+            reason_join_brand = round(mean(reason_join_brand,na.rm=T),3),
+            reason_join_cap = round(mean(reason_join_cap,na.rm=T),3),           
+            reason_join_career = round(mean(reason_join_career,na.rm=T),3),
+            reason_join_culture = round(mean(reason_join_culture,na.rm=T),3),
+            reason_join_flex_sched = round(mean(reason_join_flex_sched,na.rm=T),3),
+            reason_join_fun = round(mean(reason_join_fun,na.rm=T),3),
+            reason_join_health = round(mean(reason_join_health,na.rm=T),3),
+            reason_join_pay = round(mean(reason_join_pay,na.rm=T),3),
+            reason_join_prodbev = round(mean(reason_join_prodbev,na.rm=T),3),
+            reason_join_values = round(mean(reason_join_values,na.rm=T),3),
+            agree_decisions = round(mean(agree_decisions,na.rm=T),3),
+            agree_great_team = round(mean(agree_great_team,na.rm=T),3),
+            agree_problem_solve = round(mean(agree_problem_solve,na.rm=T),3),
+            agree_reco_great = round(mean(agree_reco_great,na.rm=T),3),
+            agree_true_self = round(mean(agree_true_self,na.rm=T),3),
+            job_char_diff = round(mean(job_char_diff,na.rm=T),3),
+            job_char_exciting = round(mean(job_char_exciting,na.rm=T),3),
+            job_char_fun = round(mean(job_char_fun,na.rm=T),3),
+            job_char_overwhelm = round(mean(job_char_overwhelm,na.rm=T),3),
+            job_char_social = round(mean(job_char_social,na.rm=T),3),
+            job_char_stress = round(mean(job_char_stress,na.rm=T),3))
 setDT(tempbin)
+#write to .xlsx
+write.xlsx(tempbin,"O:/CoOp/CoOp194_PROReportng&OM/Julie/partnerdemos_domdaypart.xlsx")
 
-#frequency table: education
-temped <- db %>%
-  group_by(Store_Role,Q8_7_Education_Level) %>%
-  summarise (n = n()) %>%
-  mutate(freq = n / sum(n))
-setDT(temped)
-
-#frequency table: tenure
-tempten <- db %>%
-  group_by(Store_Role,Tenure_Rollup) %>%
-  summarise (n = n()) %>%
-  mutate(freq = n / sum(n))
-setDT(tempten)
+# #frequency table: education
+# temped <- db %>%
+#   group_by(DOM,Q8_7_Education_Level) %>%
+#   summarise (n = n()) %>%
+#   mutate(freq = n / sum(n))
+# setDT(temped)
+# 
+# #frequency table: tenure
+# tempten <- db %>%
+#   group_by(DOM,Tenure_Rollup) %>%
+#   summarise (n = n()) %>%
+#   mutate(freq = n / sum(n))
 
