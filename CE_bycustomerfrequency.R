@@ -98,3 +98,40 @@ p1 <- ggplot(data=pdata) +
   scale_colour_discrete(name=lname,labels=llabels) + guides(col = guide_legend(ncol = 13)) +
   ggtitle(tlabel) + labs(subtitle=sublabel)
 print(p1)
+
+
+
+
+
+
+#load data
+cc <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_by_customer_frequency.csv")
+cc[, CC_SCORE := (TB_COUNT/RSPSN_COUNT)*100]
+#pads numbers - add 0 before number
+cc[, monthvar := str_pad(cc[,FSCL_PER_IN_YR_NUM], 2, pad = "0")]
+#create new year/month var for plotting
+cc[, fpfy := paste(FSCL_YR_NUM,monthvar,sep="-")]
+
+#aggreagate by transgrp
+cc <- cc[, list(USER_COUNT = sum(USER_COUNT,na.rm=T),
+                TB_COUNT = sum(TB_COUNT,na.rm=T),
+                RSPSN_COUNT = sum(RSPSN_COUNT,na.rm=T),
+                CC_SCORE = sum(TB_COUNT,na.rm=T)/sum(RSPSN_COUNT,na.rm=T)),
+         by=c("fpfy")]
+#plot
+#set labels
+xlabel <- "Monthly Transactions"
+ylabel <- "CC Score"
+tlabel <- "CC by Customer Frequency"
+sublabel <- "January FY 2017 - December FY 2018"
+#set data and variables
+pdata <- cc
+px <- cc[, fpfy]
+py <- cc[, CC_SCORE]
+#plot
+p2 <- ggplot() +
+  geom_line(data=pdata,aes(x=px, y=py, group = 1)) + 
+  xlab(xlabel) + ylab(ylabel) + theme_economist() + 
+  scale_y_continuous(limits=c(0,.4)) +
+  ggtitle(tlabel) + labs(subtitle=sublabel)
+print(p2)
