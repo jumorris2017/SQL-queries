@@ -11,6 +11,7 @@ library(ggthemes)
 library(stringr)
 library(dplyr)
 
+
 #load data
 cc <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_by_customer_frequency.csv")
 #calculate CC score (percent)

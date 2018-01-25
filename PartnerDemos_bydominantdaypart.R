@@ -8,6 +8,7 @@ library(ggplot2)
 library(tidyverse)
 library(eeptools) #age_calc
 library(xlsx)
+library(janitor) #excel_numeric_to_date
 
 #set up functions
 #calculate mode
@@ -29,17 +30,27 @@ setDT(tenuredt)
 pids <- unique(db[,PartnerID])
 tenuredt <- tenuredt[PartnerID %in% pids]
 #convert serial date format into R date format
-tenuredt[, (names(select(tenuredt,contains("date")))) := lapply(.SD, function(x) excel_numeric_to_date(as.numeric(as.character(x), date_system = "modern"))),
+tenuredt[, (names(select(tenuredt,contains("date")))) := 
+           lapply(.SD, function(x) excel_numeric_to_date(as.numeric(as.character(x), date_system = "modern"))),
          .SDcols = names(select(tenuredt,contains("date")))]
+#calculate days between hire date and sept 15th 2017
+tenuredt[, survey_date := '2017-09-15']
+tenuredt[, sbux_days := difftime(survey_date,hire_date,units="days")]
+tenuredt[, sbux_days := as.numeric(sbux_days)]
+tenuredt[, sbux_months := round(sbux_days/30.4167,0)]
+tenuredt[, sbux_years := round(sbux_days/365,1)]
+
 #merge in tenure data
 db <- left_join(db,tenuredt,by="PartnerID")
 setDT(db)
 
 #keep only baristas
 db <- db[Store_Role=="Barista"]
+# db <- db[Store_Role=="Shift supervisor"]
 
 #read in daypart data
-dp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/partner_domdaypart.csv")
+dp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/partner_domdaypart.csv") #baristas
+# dp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/partner_domdaypart_shifts.csv") #shifts
 setnames(dp,"PRTNR_NUM","PartnerID")
 
 #recalcualate PM_DOM as necessary
@@ -51,11 +62,20 @@ dp[, latepm_prp := LATEPM_SHIFTS/SHIFTS_WORKED]
 #calculate dominate daypart
 dp[, DOM := colnames(.SD)[max.col(.SD, ties.method="first")], .SDcols = c("earlyam_prp","am_prp","midday_prp","pm_prp","latepm_prp")]
 #rename so they're ordered
-dp[DOM=="earlyam_prp", DOM := "1-EarlyAM"]
-dp[DOM=="am_prp", DOM := "2-AM"]
-dp[DOM=="midday_prp", DOM := "3-Midday"]
-dp[DOM=="pm_prp", DOM := "4-PM"]
-dp[DOM=="latepm_prp", DOM := "5-LatePM"]
+dp[DOM=="earlyam_prp", DOM5 := "1-EarlyAM"]
+dp[DOM=="am_prp", DOM5 := "2-AM"]
+dp[DOM=="midday_prp", DOM5 := "3-Midday"]
+dp[DOM=="pm_prp", DOM5 := "4-PM"]
+dp[DOM=="latepm_prp", DOM5 := "5-LatePM"]
+
+#group into 3 groups
+dp[DOM=="earlyam_prp"|DOM=="am_prp"|DOM=="midday_prp", DOM3 := "1-AMMidday"]
+dp[DOM=="pm_prp", DOM3 := "2-PM"]
+dp[DOM=="latepm_prp", DOM3 := "3-LatePM"]
+
+#group into 2 groups
+dp[DOM=="earlyam_prp"|DOM=="am_prp"|DOM=="midday_prp", DOM2 := "1-AMMidday"]
+dp[DOM=="pm_prp"|DOM=="latepm_prp", DOM2 := "2-PMLatePM"]
 
 #merge in daypart data
 db <- left_join(db,dp,by=c("PartnerID"))
@@ -66,10 +86,6 @@ db <- na.omit(db,cols="DOM")
 ##outliers
 #drop values where Sbux hours worked is 0 or >60 (same as Q1_7_Starbucks_Hours_Worked_Remove_Outliers)
 db[Q1_7_Starbucks_Hours_Worked>0 & Q1_7_Starbucks_Hours_Worked<61, sbux_hours_worked := Q1_7_Starbucks_Hours_Worked]
-
-##start using the SAP question. only for hoursly; all managers *should* be 40 
-##(not what is reported; most managers report >40 hours)
-db[role==3, SAP_Avg_Hrs_per_Wk_8_weeks := 40]
 
 #convert SPSS date format into R date format
 db[, dateofbirth := spss2date(db[,DOB])]
@@ -264,9 +280,11 @@ db[Q4_1_Job_Characteristics_5=="Neither Agree nor Disagree", job_char_social := 
 db[Q4_1_Job_Characteristics_5=="Somewhat Disagree", job_char_social := 0]
 db[Q4_1_Job_Characteristics_5=="Completely Disagree", job_char_social := 0]
 
+
+
 #frequency table: binary & continuous variables
 tempbin <- db %>%
-  group_by(DOM) %>%
+  group_by(DOM3) %>%
   summarize(n = n(), 
             more_than_one_job = round(mean(more_than_one_job,na.rm=T),3),
             age = round(mean(age,na.rm=T),1),
@@ -279,6 +297,8 @@ tempbin <- db %>%
             educ_highschool = round(mean(educ_highschool,na.rm=T),3),
             educ_bach = round(mean(educ_bach,na.rm=T),3),
             job_months = round(mean(job_months,na.rm=T),1),
+            sbux_months = round(mean(sbux_months,na.rm=T),1),
+            sbux_years = round(mean(sbux_years,na.rm=T),1),
             hrs_avg_selfrpt = round(mean(sbux_hours_worked,na.rm=T),1),
             hrs_med_selfrpt = round(median(sbux_hours_worked,na.rm=T),1),
             hrs_avg_SAP = round(mean(SAP_Avg_Hrs_per_Wk_8_weeks,na.rm=T),1),
@@ -306,18 +326,169 @@ tempbin <- db %>%
             job_char_stress = round(mean(job_char_stress,na.rm=T),3))
 setDT(tempbin)
 #write to .xlsx
-write.xlsx(tempbin,"O:/CoOp/CoOp194_PROReportng&OM/Julie/partnerdemos_domdaypart.xlsx")
+write.xlsx(tempbin,"O:/CoOp/CoOp194_PROReportng&OM/Julie/partnerdemos_domdaypart_shift_5cat.xlsx")
 
 # #frequency table: education
 # temped <- db %>%
-#   group_by(DOM,Q8_7_Education_Level) %>%
-#   summarise (n = n()) %>%
-#   mutate(freq = n / sum(n))
+#   group_by(DOM5,Q8_7_Education_Level) %>%
+#   summarise (n = n() %>%
+#   mutate(freq = n / sum(n)
 # setDT(temped)
 # 
 # #frequency table: tenure
 # tempten <- db %>%
-#   group_by(DOM,Tenure_Rollup) %>%
-#   summarise (n = n()) %>%
-#   mutate(freq = n / sum(n))
+#   group_by(DOM5,Tenure_Rollup) %>%
+#   summarise (n = n() %>%
+#   mutate(freq = n / sum(n)
+
+
+nrow(db[Hours_Delta_Ideal_From_Stated>0&DOM2=="1-AMMidday",])
+nrow(db[Hours_Delta_Ideal_From_Stated>0&DOM2=="2-PMLatePM",])
+nrow(db[Hours_Delta_Ideal_From_Stated<0&DOM2=="1-AMMidday",])
+nrow(db[Hours_Delta_Ideal_From_Stated<0&DOM2=="2-PMLatePM",])
+
+#frequency table: binary & continuous variables
+tempbin <- db %>%
+  group_by(DOM3) %>%
+  summarize(n = n(), 
+            more_than_one_job = round(mean(more_than_one_job,na.rm=T),3),
+            age = round(mean(age,na.rm=T),1),
+            marital_married_part = round(mean(marital_married_part,na.rm=T),3),
+            Kids_Flag = round(mean(Kids_Flag,na.rm=T),3),
+            student = round(mean(student,na.rm=T),3),
+            primary_income = round(mean(Q8_4_Primary_Income_Flag,na.rm=T),3),
+            sched_very_consistent = round(mean(sched_very_consistent,na.rm=T),3),
+            health_sbux = round(mean(health_sbux,na.rm=T),3),
+            educ_highschool = round(mean(educ_highschool,na.rm=T),3),
+            educ_bach = round(mean(educ_bach,na.rm=T),3),
+            job_months = round(mean(job_months,na.rm=T),1),
+            sbux_months = round(mean(sbux_months,na.rm=T),1),
+            sbux_years = round(mean(sbux_years,na.rm=T),1),
+            hrs_avg_selfrpt = round(mean(sbux_hours_worked,na.rm=T),1),
+            hrs_med_selfrpt = round(median(sbux_hours_worked,na.rm=T),1),
+            hrs_avg_SAP = round(mean(SAP_Avg_Hrs_per_Wk_8_weeks,na.rm=T),1),
+            hrs_med_SAP = round(median(SAP_Avg_Hrs_per_Wk_8_weeks,na.rm=T),1),
+            reason_join_brand = round(mean(reason_join_brand,na.rm=T),3),
+            reason_join_cap = round(mean(reason_join_cap,na.rm=T),3),           
+            reason_join_career = round(mean(reason_join_career,na.rm=T),3),
+            reason_join_culture = round(mean(reason_join_culture,na.rm=T),3),
+            reason_join_flex_sched = round(mean(reason_join_flex_sched,na.rm=T),3),
+            reason_join_fun = round(mean(reason_join_fun,na.rm=T),3),
+            reason_join_health = round(mean(reason_join_health,na.rm=T),3),
+            reason_join_pay = round(mean(reason_join_pay,na.rm=T),3),
+            reason_join_prodbev = round(mean(reason_join_prodbev,na.rm=T),3),
+            reason_join_values = round(mean(reason_join_values,na.rm=T),3),
+            agree_decisions = round(mean(agree_decisions,na.rm=T),3),
+            agree_great_team = round(mean(agree_great_team,na.rm=T),3),
+            agree_problem_solve = round(mean(agree_problem_solve,na.rm=T),3),
+            agree_reco_great = round(mean(agree_reco_great,na.rm=T),3),
+            agree_true_self = round(mean(agree_true_self,na.rm=T),3),
+            job_char_diff = round(mean(job_char_diff,na.rm=T),3),
+            job_char_exciting = round(mean(job_char_exciting,na.rm=T),3),
+            job_char_fun = round(mean(job_char_fun,na.rm=T),3),
+            job_char_overwhelm = round(mean(job_char_overwhelm,na.rm=T),3),
+            job_char_social = round(mean(job_char_social,na.rm=T),3),
+            job_char_stress = round(mean(job_char_stress,na.rm=T),3),
+            Q1_7_Starbucks_Hours_Worked_Remove_Outliers = round(mean(Q1_7_Starbucks_Hours_Worked_Remove_Outliers,na.rm=T),1),
+            Q1_8_Starbucks_Ideal_Hours_Remove_Outliers = round(mean(Q1_8_Starbucks_Ideal_Hours_Remove_Outliers,na.rm=T),1),
+            Hours_Delta_Ideal_From_Stated = round(mean(Hours_Delta_Ideal_From_Stated,na.rm=T),1))
+setDT(tempbin)
+#write to .xlsx
+write.xlsx(tempbin,"O:/CoOp/CoOp194_PROReportng&OM/Julie/partnerdemos_domdaypart_barista_3cat.xlsx")
+
+# #anovas
+# summary(aov(age ~ DOM3, data=db)
+# summary(aov(marital_married_part ~ DOM3, data=db)
+# summary(aov(Kids_Flag ~ DOM3, data=db)
+# summary(aov(student ~ DOM3, data=db)
+# summary(aov(educ_bach ~ DOM3, data=db)
+# summary(aov(job_months ~ DOM3, data=db)
+# summary(aov(sbux_hours_worked ~ DOM3, data=db)
+# summary(aov(reason_join_brand ~ DOM3, data=db)
+# summary(aov(reason_join_cap ~ DOM3, data=db)
+# summary(aov(reason_join_career ~ DOM3, data=db)
+# summary(aov(reason_join_culture ~ DOM3, data=db)
+# summary(aov(reason_join_flex_sched ~ DOM3, data=db)
+# summary(aov(reason_join_fun ~ DOM3, data=db)
+# summary(aov(reason_join_health ~ DOM3, data=db)
+# summary(aov(reason_join_pay ~ DOM3, data=db)
+# summary(aov(reason_join_prodbev ~ DOM3, data=db)
+# summary(aov(reason_join_values ~ DOM3, data=db)
+# summary(aov(agree_decisions ~ DOM3, data=db)
+# summary(aov(agree_great_team ~ DOM3, data=db)
+# summary(aov(agree_problem_solve ~ DOM3, data=db)
+# summary(aov(agree_reco_great ~ DOM3, data=db)
+# summary(aov(agree_true_self ~ DOM3, data=db)
+# summary(aov(job_char_diff ~ DOM3, data=db)
+# summary(aov(job_char_exciting ~ DOM3, data=db)
+# summary(aov(job_char_fun ~ DOM3, data=db)
+# summary(aov(job_char_overwhelm ~ DOM3, data=db)
+# summary(aov(job_char_social ~ DOM3, data=db)
+# summary(aov(job_char_stress ~ DOM3, data=db)
+
+
+#t.tests: PM vs. AM
+dbpmam <- db[DOM3=="1-AMMidday"|DOM3=="2-PM"]
+# dbpmam <- db[DOM3=="1-AMMidday"|DOM3=="2-PMLatePM"]
+t.test(age ~ DOM3, data=dbpmam)
+t.test(marital_married_part ~ DOM3, data=dbpmam)
+t.test(Kids_Flag ~ DOM3, data=dbpmam)
+t.test(student ~ DOM3, data=dbpmam)
+t.test(educ_bach ~ DOM3, data=dbpmam)
+t.test(job_months ~ DOM3, data=dbpmam)
+t.test(sbux_months ~ DOM3, data=dbpmam)
+t.test(sbux_hours_worked ~ DOM3, data=dbpmam)
+t.test(reason_join_brand ~ DOM3, data=dbpmam)
+t.test(reason_join_cap ~ DOM3, data=dbpmam)
+t.test(reason_join_career ~ DOM3, data=dbpmam)
+t.test(reason_join_culture ~ DOM3, data=dbpmam)
+t.test(reason_join_flex_sched ~ DOM3, data=dbpmam)
+t.test(reason_join_fun ~ DOM3, data=dbpmam)
+t.test(reason_join_health ~ DOM3, data=dbpmam)
+t.test(reason_join_pay ~ DOM3, data=dbpmam)
+t.test(reason_join_prodbev ~ DOM3, data=dbpmam)
+t.test(reason_join_values ~ DOM3, data=dbpmam)
+t.test(agree_decisions ~ DOM3, data=dbpmam)
+t.test(agree_great_team ~ DOM3, data=dbpmam)
+t.test(agree_problem_solve ~ DOM3, data=dbpmam)
+t.test(agree_reco_great ~ DOM3, data=dbpmam)
+t.test(agree_true_self ~ DOM3, data=dbpmam)
+t.test(job_char_diff ~ DOM3, data=dbpmam)
+t.test(job_char_exciting ~ DOM3, data=dbpmam)
+t.test(job_char_fun ~ DOM3, data=dbpmam)
+t.test(job_char_overwhelm ~ DOM3, data=dbpmam)
+t.test(job_char_social ~ DOM3, data=dbpmam)
+t.test(job_char_stress ~ DOM3, data=dbpmam)
+t.test(Hours_Delta_Ideal_From_Stated ~ DOM3, data=dbpmam)
+
+#t.tests: PM vs. Late-PM
+dbpmlpm <- db[DOM3=="3-LatePM"|DOM3=="2-PM"]
+t.test(age ~ DOM3, data=dbpmlpm)
+t.test(marital_married_part ~ DOM3, data=dbpmlpm)
+t.test(Kids_Flag ~ DOM3, data=dbpmlpm)
+t.test(student ~ DOM3, data=dbpmlpm)
+t.test(educ_bach ~ DOM3, data=dbpmlpm)
+t.test(job_months ~ DOM3, data=dbpmlpm)
+t.test(sbux_hours_worked ~ DOM3, data=dbpmlpm)
+t.test(reason_join_brand ~ DOM3, data=dbpmlpm)
+t.test(reason_join_cap ~ DOM3, data=dbpmlpm)
+t.test(reason_join_career ~ DOM3, data=dbpmlpm)
+t.test(reason_join_culture ~ DOM3, data=dbpmlpm)
+t.test(reason_join_flex_sched ~ DOM3, data=dbpmlpm)
+t.test(reason_join_fun ~ DOM3, data=dbpmlpm)
+t.test(reason_join_health ~ DOM3, data=dbpmlpm)
+t.test(reason_join_pay ~ DOM3, data=dbpmlpm)
+t.test(reason_join_prodbev ~ DOM3, data=dbpmlpm)
+t.test(reason_join_values ~ DOM3, data=dbpmlpm)
+t.test(agree_decisions ~ DOM3, data=dbpmlpm)
+t.test(agree_great_team ~ DOM3, data=dbpmlpm)
+t.test(agree_problem_solve ~ DOM3, data=dbpmlpm)
+t.test(agree_reco_great ~ DOM3, data=dbpmlpm)
+t.test(agree_true_self ~ DOM3, data=dbpmlpm)
+t.test(job_char_diff ~ DOM3, data=dbpmlpm)
+t.test(job_char_exciting ~ DOM3, data=dbpmlpm)
+t.test(job_char_fun ~ DOM3, data=dbpmlpm)
+t.test(job_char_overwhelm ~ DOM3, data=dbpmlpm)
+t.test(job_char_social ~ DOM3, data=dbpmlpm)
+t.test(job_char_stress ~ DOM3, data=dbpmlpm)
 
