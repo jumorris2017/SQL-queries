@@ -190,11 +190,10 @@ temp <- mopcc[, list(
 temp <- setorder(temp,ORD_MTHD_CD,QSTN_ID,FSCL_YR_NUM,FSCL_QTR_IN_YR_NUM)
 write.xlsx(temp,"O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_scores_formopstuff.xlsx")
 
-
-
-
-
-
+# mop <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/MOP_percent_by_store.csv")
+# mop <- mop[FSCL_QTR_IN_YR_NUM==1&FSCL_YR_NUM==2018]
+# mop[, PEAK_TRANS_MOP_PCT := round(PEAK_MOP_TRANS_CNT/PEAK_TTL_TRANS_CNT,4)]
+# write.csv(mop,"O:/CoOp/CoOp194_PROReportng&OM/Julie/Peak_MOP_percent_by_store_Q1FY18.csv")
 #SLIDES 5-6
 
 #load data

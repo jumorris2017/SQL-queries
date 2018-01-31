@@ -28,6 +28,48 @@ dp[, ddp_tie_last := colnames(.SD)[max.col(.SD, ties.method="last")], .SDcols = 
 dp[ddp_tie_first==ddp_tie_last, ddp_tie_exists := 0]
 dp[ddp_tie_first!=ddp_tie_last, ddp_tie_exists := 1]
 
+#CREATE binarys for if they work dayparts at all
+dp[pm_prp==0, YESPM := 0];dp[pm_prp>0, YESPM := 1]
+dp[pm_prp==0&latepm_prp==0, YESpmORLATEPM := 0];dp[pm_prp>0|latepm_prp>0, YESpmORLATEPM := 1]
+dp[earlyam_prp==0&am_prp==0&midday_prp==0, YESEAMorAMorMID := 0];dp[earlyam_prp>0|am_prp>0|midday_prp>0, YESEAMorAMorMID := 1]
+
+#CREATE binarys for if they do NOT work dayparts, for pie chart
+dp[earlyam_prp>0, NOEAM := 0];dp[earlyam_prp==0, NOEAM := 1]
+dp[am_prp>0, NOAM := 0];dp[am_prp==0, NOAM := 1]
+dp[midday_prp>0, NOMID := 0];dp[midday_prp==0, NOMID := 1]
+dp[pm_prp>0, NOPM := 0];dp[pm_prp==0, NOPM := 1]
+dp[latepm_prp>0, NOLATEPM := 0];dp[latepm_prp==0, NOLATEPM := 1]
+pie2 <- dp[, lapply(.SD,sum,na.rm=T),by=c("JOB_ID"), .SDcols=colnames(dp)[20:24]]
+pie2[, N := rowSums(.SD,na.rm=T), .SDcols=(colnames(pie2)[2:6])]
+pie2[, NOEAM_prp := round(NOEAM/N,3)]
+pie2[, NOAM_prp := round(NOAM/N,3)]
+pie2[, NOMID_prp := round(NOMID/N,3)]
+pie2[, NOPM_prp := round(NOPM/N,3)]
+pie2[, NOLATEPM_prp := round(NOLATEPM/N,3)]
+
+#percent earlyAM/AM/MIDers who also work PM (baristas), etc.
+#baristas
+dp[JOB_ID==50000362&(ddp_tie_first=="earlyam_prp"|ddp_tie_first=="am_prp"|ddp_tie_first=="midday_prp"), 
+   .N/nrow(dp[JOB_ID==50000362&(ddp_tie_first=="earlyam_prp"|ddp_tie_first=="am_prp"|ddp_tie_first=="midday_prp")]), by="YESPM"]
+dp[JOB_ID==50000362&ddp_tie_first=="pm_prp", .N/nrow(dp[JOB_ID==50000362&ddp_tie_first=="pm_prp"]), by="YESEAMorAMorMID"]
+#shifts
+dp[JOB_ID==50000358&(ddp_tie_first=="earlyam_prp"|ddp_tie_first=="am_prp"|ddp_tie_first=="midday_prp"), 
+   .N/nrow(dp[JOB_ID==50000358&(ddp_tie_first=="earlyam_prp"|ddp_tie_first=="am_prp"|ddp_tie_first=="midday_prp")]), by="YESpmORLATEPM"]
+dp[JOB_ID==50000358&(ddp_tie_first=="pm_prp"|ddp_tie_first=="latepm_prp"), 
+   .N/nrow(dp[JOB_ID==50000358&(ddp_tie_first=="pm_prp"|ddp_tie_first=="latepm_prp")]), by="YESEAMorAMorMID"]
+
+#pie chart by percent of shifts in each day part
+pie <- dp[, lapply(.SD,sum,na.rm=T),by=c("JOB_ID"), .SDcols=colnames(dp)[3:8]]
+pie[, earlyam_prp := round(EARLYAM_SHIFTS/SHIFTS_WORKED,3)]
+pie[, am_prp := round(AM_SHIFTS/SHIFTS_WORKED,3)]
+pie[, midday_prp := round(MIDDAY_SHIFTS/SHIFTS_WORKED,3)]
+pie[, pm_prp := round(PM_SHIFTS/SHIFTS_WORKED,3)]
+pie[, latepm_prp := round(LATEPM_SHIFTS/SHIFTS_WORKED,3)]
+
+#distribtion of partners by dominant daypart
+dp[ddp_tie_exists==0&JOB_ID==50000362,.N/nrow(dp[ddp_tie_exists==0&JOB_ID==50000362]),by="ddp_tie_first"]
+dp[ddp_tie_exists==0&JOB_ID==50000358,.N/nrow(dp[ddp_tie_exists==0&JOB_ID==50000358]),by="ddp_tie_first"]
+
 #write to .csv
 write.csv(dp,"O:/CoOp/CoOp194_PROReportng&OM/Julie/baristas-shifts_bydaypart_dec4-17_2017.csv")
 
@@ -119,7 +161,7 @@ write.xlsx(tempmat,"O:/CoOp/CoOp194_PROReportng&OM/Julie/temp_final_survey.xlsx"
 #subset to just baristas who work only am
 #temp <- dpanel[JOB_ID==50000362&group==1]
 temp <- dpanel[,.(JOB_ID,ddp_tie_first,Q2_Dayparts_Worked_EarlyAMbefore7am,
-                 Q2_Dayparts_Worked_AM711am,Q2_Dayparts_Worked_Midday11am2pm,Q2_Dayparts_Worked_PM25pm,
+                  Q2_Dayparts_Worked_AM711am,Q2_Dayparts_Worked_Midday11am2pm,Q2_Dayparts_Worked_PM25pm,
                  Q2_Dayparts_Worked_LatePMafter5pm,Q3_Daypart_MostOften,
                  Q4a_Why_NotWork_AM,Q4b_Why_NotWork_PM,
                  Q5a_Why_UnableWork_4a_Iamastudentandattendschoolduringthattimeof,
@@ -129,8 +171,11 @@ temp <- dpanel[,.(JOB_ID,ddp_tie_first,Q2_Dayparts_Worked_EarlyAMbefore7am,
                  Q5b_Why_UnableWork_4b_Iamresponsiblefortakingcareofotheregmychil,
                  Q5b_Why_UnableWork_4b_Ihaveanotherjobduringthattimeoftheday)]
 # temp2 <- temp[,lapply(.SD,sum,na.rm=T),.SDcols=colnames(temp)[3:ncol(temp)],by="JOB_ID"]
-nrow(temp[JOB_ID==50000362])
-nrow(temp[JOB_ID==50000358])
+temp[JOB_ID==50000362&!is.na(Q4a_Why_NotWork_AM),.N/nrow(temp[JOB_ID==50000362&!is.na(Q4a_Why_NotWork_AM)]),by=c("Q4a_Why_NotWork_AM")]
+temp[JOB_ID==50000358&!is.na(Q4a_Why_NotWork_AM),.N/nrow(temp[JOB_ID==50000358&!is.na(Q4a_Why_NotWork_AM)]),by=c("Q4a_Why_NotWork_AM")]
+temp[JOB_ID==50000362&!is.na(Q4b_Why_NotWork_PM),.N/nrow(temp[JOB_ID==50000362&!is.na(Q4b_Why_NotWork_PM)]),by=c("Q4b_Why_NotWork_PM")]
+temp[JOB_ID==50000358&!is.na(Q4b_Why_NotWork_PM),.N/nrow(temp[JOB_ID==50000358&!is.na(Q4b_Why_NotWork_PM)]),by=c("Q4b_Why_NotWork_PM")]
+
 
 
 tempbin <- dpanel %>%
@@ -217,15 +262,45 @@ write.xlsx(tempbin2,"O:/CoOp/CoOp194_PROReportng&OM/Julie/temp_final_survey_q5_b
 # write.xlsx(tab,"O:/CoOp/CoOp194_PROReportng&OM/Julie/baristas-shifts_bydaypart_dec-jan-comparison.xlsx")
 
 
+
+
+#for selecting sample, pull in panel ids
+dp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/baristas-shifts_bydaypart_dec4-17_2017.csv")
+dp[, V1 := NULL]
+panel <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/panelistsfordaypart.csv") 
+setnames(panel,c("PanelistAlternateId"),c("PRTNR_NUM"))
+#keep dp rows where partner numbers are in the panelist id file
+dp <- dp[PRTNR_NUM %in% unique(panel[,PRTNR_NUM])]
+dp <- dp[!duplicated(dp$PRTNR_NUM),]
+panel <- panel[PRTNR_NUM %in% unique(dp[,PRTNR_NUM])]
+panel <- panel[!duplicated(panel$PRTNR_NUM),]
+dpanel <- merge(dp,panel,by="PRTNR_NUM",all=F)
+
 #pull in training data
 tr <- read.spss("//starbucks/amer/portal/Departments/WMO/Marketing Research/New Q drive/Partner Insights/Partner Perspectives/Research/Partner Experience Study/11_Wave8_Retail (Sept 2017)/02 Data/PES _Retail_W8_Sept_2017_CLEAN_US.sav", use.value.labels = FALSE, to.data.frame=TRUE)
 setDT(tr)
-tr <- tr[,.(PartnerID,BlockA_4_TB,BlockA_7_TB,BlockB_7_TB)]
+tr <- tr[,.(PartnerID,BlockA_4_TB,BlockA_7_TB,BlockB_7_TB,BlockC_8_TB)]
 setnames(tr,"PartnerID","PRTNR_NUM")
 dpanel <- merge(dpanel,tr,by="PRTNR_NUM")
 #a5.	I like working for my manager
 #a8.	My work schedule fits my life
 #b18.	I receive the training I need to do my job
+
+#group into 3 groups
+dpanel[ddp_tie_first=="earlyam_prp"|ddp_tie_first=="am_prp"|ddp_tie_first=="midday_prp", DOM3 := "1-AMMidday"]
+dpanel[ddp_tie_first=="pm_prp", DOM3 := "2-PM"]
+dpanel[ddp_tie_first=="latepm_prp", DOM3 := "3-LatePM"]
+
+#t.tests: PM vs. AM
+dpanelpmam <- dpanel[DOM3=="1-AMMidday"|DOM3=="2-PM"]
+t.test(BlockA_4_TB ~ DOM3, data=dpanelpmam[JOB_ID==50000362]) #like my manager
+t.test(BlockA_4_TB ~ DOM3, data=dpanelpmam[JOB_ID==50000358]) #like my manager
+t.test(BlockA_7_TB ~ DOM3, data=dpanelpmam[JOB_ID==50000362]) #sched
+t.test(BlockA_7_TB ~ DOM3, data=dpanelpmam[JOB_ID==50000358]) #sched
+t.test(BlockB_7_TB ~ DOM3, data=dpanelpmam[JOB_ID==50000362]) #training
+t.test(BlockB_7_TB ~ DOM3, data=dpanelpmam[JOB_ID==50000358]) #training
+t.test(BlockC_8_TB ~ DOM3, data=dpanelpmam[JOB_ID==50000362]) #engaged
+t.test(BlockC_8_TB ~ DOM3, data=dpanelpmam[JOB_ID==50000358]) #engaged
 
 #frequency table: binary & continuous variables
 tempbin <- dpanel %>%
@@ -236,9 +311,75 @@ tempbin <- dpanel %>%
             schedulefitslifeN = sum(BlockA_7_TB,na.rm=T),
             schedulefitslife = round(mean(BlockA_7_TB,na.rm=T),3),
             trainingineedN = sum(BlockB_7_TB,na.rm=T),
-            trainingineed = round(mean(BlockB_7_TB,na.rm=T),3))
+            trainingineed = round(mean(BlockB_7_TB,na.rm=T),3),
+            engageN = sum(BlockC_8_TB,na.rm=T),
+            engage = round(mean(BlockC_8_TB,na.rm=T),3))
 setDT(tempbin)
 write.xlsx(tempbin,"O:/CoOp/CoOp194_PROReportng&OM/Julie/partnerexp_grouped.xlsx")
 
 
+
+
+
+
+#for selecting sample, pull in panel ids
+dp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/baristas-shifts_bydaypart_dec4-17_2017.csv")
+dp[, V1 := NULL]
+panel <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/panelistsfordaypart.csv") 
+setnames(panel,c("PanelistAlternateId"),c("PRTNR_NUM"))
+#keep dp rows where partner numbers are in the panelist id file
+dp <- dp[PRTNR_NUM %in% unique(panel[,PRTNR_NUM])]
+dp <- dp[!duplicated(dp$PRTNR_NUM),]
+panel <- panel[PRTNR_NUM %in% unique(dp[,PRTNR_NUM])]
+panel <- panel[!duplicated(panel$PRTNR_NUM),]
+dpanel <- merge(dp,panel,by="PRTNR_NUM",all=F)
+
+##read in tenure data
+tenuredt <- read.csv("//starbucks/amer/portal/Departments/WMO/Marketing Research/New Q drive/Partner Insights/Partner Perspectives/Research/Partner Life Survey/Data/partner_tenure.csv", fileEncoding="UTF-8-BOM")
+setDT(tenuredt)
+#subset tenuredt to only active PartnerIDs for recoding, pre-mergin
+setnames(tenuredt,"PartnerID","PRTNR_NUM")
+
+#convert serial date format into R date format
+tenuredt[, (names(select(tenuredt,contains("date")))) := 
+           lapply(.SD, function(x) excel_numeric_to_date(as.numeric(as.character(x), date_system = "modern"))),
+         .SDcols = names(select(tenuredt,contains("date")))]
+#calculate days between hire date and sept 15th 2017
+tenuredt[, survey_date := '2017-09-15']
+tenuredt[, sbux_days := difftime(survey_date,hire_date,units="days")]
+tenuredt[, sbux_days := as.numeric(sbux_days)]
+tenuredt[, sbux_months := round(sbux_days/30.4167,0)]
+tenuredt[, sbux_years := round(sbux_days/365,1)]
+
+
+#binary for less than 6 months job tenure
+tenuredt[job_months<6, less6mo_jobmonths := 1]; tenuredt[job_months>=6, less6mo_jobmonths := 0]
+#binary for less than 3 months job tenure
+tenuredt[job_months<3, less3mo_jobmonths := 1]; tenuredt[job_months>=3, less3mo_jobmonths := 0]
+#merge
+dpanel <- merge(dpanel,tenuredt,by="PRTNR_NUM")
+
+#group into 3 groups
+dpanel[ddp_tie_first=="earlyam_prp"|ddp_tie_first=="am_prp"|ddp_tie_first=="midday_prp", DOM3 := "1-AMMidday"]
+dpanel[ddp_tie_first=="pm_prp", DOM3 := "2-PM"]
+dpanel[ddp_tie_first=="latepm_prp", DOM3 := "3-LatePM"]
+
+dpanelpmam <- dpanel[DOM3=="1-AMMidday"|DOM3=="2-PM"]
+t.test(less6mo_jobmonths ~ DOM3, data=dpanelpmam[JOB_ID==50000362])
+
+#group into 2 groups
+dpanel[ddp_tie_first=="earlyam_prp"|ddp_tie_first=="am_prp"|ddp_tie_first=="midday_prp", DOM2 := "1-AMMidday"]
+dpanel[ddp_tie_first=="pm_prp"|ddp_tie_first=="latepm_prp", DOM2 := "2-PMLatePM"]
+t.test(less6mo_jobmonths ~ DOM2, data=dpanel[JOB_ID==50000358])
+
+#do not work PM
+dpanel[pm_prp==0, YESPM := 0];dpanel[pm_prp>0, YESPM := 1]
+dpanel[JOB_ID==50000362&YESPM==0,mean(less6mo_jobmonths,na.rm=T)]
+
+tempbin <- dpanel %>%
+  group_by(JOB_ID,DOM3) %>%
+  summarize(n = n(), 
+            less6mo_jobmonthsN = sum(less6mo_jobmonths,na.rm=T),
+            less6mo_jobmonths = round(mean(less6mo_jobmonths,na.rm=T),3))
+setDT(tempbin)
 

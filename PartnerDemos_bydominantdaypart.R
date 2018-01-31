@@ -40,12 +40,17 @@ tenuredt[, sbux_days := as.numeric(sbux_days)]
 tenuredt[, sbux_months := round(sbux_days/30.4167,0)]
 tenuredt[, sbux_years := round(sbux_days/365,1)]
 
+#binary for less than 6 months job tenure
+tenuredt[job_months<6, less6mo_jobmonths := 1]; tenuredt[job_months>=6, less6mo_jobmonths := 0]
+#binary for less than 3 months job tenure
+tenuredt[job_months<3, less3mo_jobmonths := 1]; tenuredt[job_months>=3, less3mo_jobmonths := 0]
+
 #merge in tenure data
 db <- left_join(db,tenuredt,by="PartnerID")
 setDT(db)
 
 #keep only baristas
-#db <- db[Store_Role=="Barista"]
+# db <- db[Store_Role=="Barista"]
 db <- db[Store_Role=="Shift supervisor"]
 
 #read in daypart data
@@ -76,6 +81,11 @@ dp[DOM=="latepm_prp", DOM3 := "3-LatePM"]
 #group into 2 groups
 dp[DOM=="earlyam_prp"|DOM=="am_prp"|DOM=="midday_prp", DOM2 := "1-AMMidday"]
 dp[DOM=="pm_prp"|DOM=="latepm_prp", DOM2 := "2-PMLatePM"]
+
+#CREATE binarys for if they work dayparts at all
+dp[pm_prp==0, YESPM := 0];dp[pm_prp>0, YESPM := 1]
+dp[pm_prp==0&latepm_prp==0, YESpmORLATEPM := 0];dp[pm_prp>0|latepm_prp>0, YESpmORLATEPM := 1]
+dp[earlyam_prp==0&am_prp==0&midday_prp==0, YESEAMorAMorMID := 0];dp[earlyam_prp>0|am_prp>0|midday_prp>0, YESEAMorAMorMID := 1]
 
 #merge in daypart data
 db <- left_join(db,dp,by=c("PartnerID"))
@@ -311,6 +321,8 @@ tempbin <- db %>%
             educ_highschool = round(mean(educ_highschool,na.rm=T),3),
             educ_bach = round(mean(educ_bach,na.rm=T),3),
             job_months = round(mean(job_months,na.rm=T),1),
+            less6mo_jobmonths = round(mean(less6mo_jobmonths,na.rm=T),3),
+            less3mo_jobmonths = round(mean(less3mo_jobmonths,na.rm=T),3),
             sbux_months = round(mean(sbux_months,na.rm=T),1),
             sbux_years = round(mean(sbux_years,na.rm=T),1),
             hrs_avg_selfrpt = round(mean(sbux_hours_worked,na.rm=T),1),
@@ -342,7 +354,7 @@ tempbin <- db %>%
             retained = round(mean(retainedFY18FP4,na.rm=T),3))
 setDT(tempbin)
 #write to .xlsx
-write.xlsx(tempbin,"O:/CoOp/CoOp194_PROReportng&OM/Julie/partnerdemos_domdaypart_shift_3cat.xlsx")
+write.xlsx(tempbin,"O:/CoOp/CoOp194_PROReportng&OM/Julie/partnerdemos_domdaypart_bar_3cat.xlsx")
 
 # #frequency table: education
 # temped <- db %>%
@@ -365,7 +377,7 @@ nrow(db[Hours_Delta_Ideal_From_Stated<0&DOM2=="2-PMLatePM",])
 
 #frequency table: binary & continuous variables
 tempbin <- db %>%
-  group_by(DOM3) %>%
+  group_by(DOM2) %>%
   summarize(n = n(), 
             more_than_one_job = round(mean(more_than_one_job,na.rm=T),3),
             age = round(mean(age,na.rm=T),1),
@@ -378,6 +390,7 @@ tempbin <- db %>%
             educ_highschool = round(mean(educ_highschool,na.rm=T),3),
             educ_bach = round(mean(educ_bach,na.rm=T),3),
             job_months = round(mean(job_months,na.rm=T),1),
+            less6mo_jobmonths = round(mean(less6mo_jobmonths,na.rm=T),3),
             sbux_months = round(mean(sbux_months,na.rm=T),1),
             sbux_years = round(mean(sbux_years,na.rm=T),1),
             hrs_avg_selfrpt = round(mean(sbux_hours_worked,na.rm=T),1),
@@ -410,7 +423,7 @@ tempbin <- db %>%
             Hours_Delta_Ideal_From_Stated = round(mean(Hours_Delta_Ideal_From_Stated,na.rm=T),1))
 setDT(tempbin)
 #write to .xlsx
-write.xlsx(tempbin,"O:/CoOp/CoOp194_PROReportng&OM/Julie/partnerdemos_domdaypart_barista_3cat.xlsx")
+write.xlsx(tempbin,"O:/CoOp/CoOp194_PROReportng&OM/Julie/partnerdemos_domdaypart_shift_2cat.xlsx")
 
 # #anovas
 # summary(aov(age ~ DOM3, data=db)
@@ -476,6 +489,9 @@ t.test(job_char_overwhelm ~ DOM3, data=dbpmam)
 t.test(job_char_social ~ DOM3, data=dbpmam)
 t.test(job_char_stress ~ DOM3, data=dbpmam)
 t.test(Hours_Delta_Ideal_From_Stated ~ DOM3, data=dbpmam)
+t.test(less6mo_jobmonths ~ DOM3, data=dbpmam)
+t.test(less3mo_jobmonths ~ DOM3, data=dbpmam)
+t.test(retainedFY18FP4 ~ DOM3, data=dbpmam)
 
 #t.tests: PM vs. Late-PM
 dbpmlpm <- db[DOM3=="3-LatePM"|DOM3=="2-PM"]
@@ -508,3 +524,98 @@ t.test(job_char_overwhelm ~ DOM3, data=dbpmlpm)
 t.test(job_char_social ~ DOM3, data=dbpmlpm)
 t.test(job_char_stress ~ DOM3, data=dbpmlpm)
 
+
+
+#t.tests: PM vs. Late-PM
+dbpmlpm <- db[DOM2=="1-AMMidday"|DOM2=="2-PMLatePM"]
+t.test(age ~ DOM2, data=dbpmlpm)
+t.test(marital_married_part ~ DOM2, data=dbpmlpm)
+t.test(Kids_Flag ~ DOM2, data=dbpmlpm)
+t.test(student ~ DOM2, data=dbpmlpm)
+t.test(educ_bach ~ DOM2, data=dbpmlpm)
+t.test(job_months ~ DOM2, data=dbpmlpm)
+t.test(sbux_hours_worked ~ DOM2, data=dbpmlpm)
+t.test(reason_join_brand ~ DOM2, data=dbpmlpm)
+t.test(reason_join_cap ~ DOM2, data=dbpmlpm)
+t.test(reason_join_career ~ DOM2, data=dbpmlpm)
+t.test(reason_join_culture ~ DOM2, data=dbpmlpm)
+t.test(reason_join_flex_sched ~ DOM2, data=dbpmlpm)
+t.test(reason_join_fun ~ DOM2, data=dbpmlpm)
+t.test(reason_join_health ~ DOM2, data=dbpmlpm)
+t.test(reason_join_pay ~ DOM2, data=dbpmlpm)
+t.test(reason_join_prodbev ~ DOM2, data=dbpmlpm)
+t.test(reason_join_values ~ DOM2, data=dbpmlpm)
+t.test(agree_decisions ~ DOM2, data=dbpmlpm)
+t.test(agree_great_team ~ DOM2, data=dbpmlpm)
+t.test(agree_problem_solve ~ DOM2, data=dbpmlpm)
+t.test(agree_reco_great ~ DOM2, data=dbpmlpm)
+t.test(agree_true_self ~ DOM2, data=dbpmlpm)
+t.test(job_char_diff ~ DOM2, data=dbpmlpm)
+t.test(job_char_exciting ~ DOM2, data=dbpmlpm)
+t.test(job_char_fun ~ DOM2, data=dbpmlpm)
+t.test(job_char_overwhelm ~ DOM2, data=dbpmlpm)
+t.test(job_char_social ~ DOM2, data=dbpmlpm)
+t.test(job_char_stress ~ DOM2, data=dbpmlpm)
+t.test(less6mo_jobmonths ~ DOM2, data=dbpmlpm)
+t.test(retainedFY18FP4 ~ DOM2, data=dbpmlpm)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#frequency table: binary & continuous variables
+tempbin <- db[Store_Role=="Barista"&YESPM==0] %>%
+  group_by(YESPM) %>%
+  summarize(n = n(), 
+            more_than_one_job = round(mean(more_than_one_job,na.rm=T),3),
+            age = round(mean(age,na.rm=T),1),
+            marital_married_part = round(mean(marital_married_part,na.rm=T),3),
+            Kids_Flag = round(mean(Kids_Flag,na.rm=T),3),
+            student = round(mean(student,na.rm=T),3),
+            primary_income = round(mean(Q8_4_Primary_Income_Flag,na.rm=T),3),
+            sched_very_consistent = round(mean(sched_very_consistent,na.rm=T),3),
+            health_sbux = round(mean(health_sbux,na.rm=T),3),
+            educ_highschool = round(mean(educ_highschool,na.rm=T),3),
+            educ_bach = round(mean(educ_bach,na.rm=T),3),
+            job_months = round(mean(job_months,na.rm=T),1),
+            less6mo_jobmonths = round(mean(less6mo_jobmonths,na.rm=T),3),
+            sbux_months = round(mean(sbux_months,na.rm=T),1),
+            sbux_years = round(mean(sbux_years,na.rm=T),1),
+            hrs_avg_selfrpt = round(mean(sbux_hours_worked,na.rm=T),1),
+            hrs_med_selfrpt = round(median(sbux_hours_worked,na.rm=T),1),
+            hrs_avg_SAP = round(mean(SAP_Avg_Hrs_per_Wk_8_weeks,na.rm=T),1),
+            hrs_med_SAP = round(median(SAP_Avg_Hrs_per_Wk_8_weeks,na.rm=T),1),
+            reason_join_brand = round(mean(reason_join_brand,na.rm=T),3),
+            reason_join_cap = round(mean(reason_join_cap,na.rm=T),3),           
+            reason_join_career = round(mean(reason_join_career,na.rm=T),3),
+            reason_join_culture = round(mean(reason_join_culture,na.rm=T),3),
+            reason_join_flex_sched = round(mean(reason_join_flex_sched,na.rm=T),3),
+            reason_join_fun = round(mean(reason_join_fun,na.rm=T),3),
+            reason_join_health = round(mean(reason_join_health,na.rm=T),3),
+            reason_join_pay = round(mean(reason_join_pay,na.rm=T),3),
+            reason_join_prodbev = round(mean(reason_join_prodbev,na.rm=T),3),
+            reason_join_values = round(mean(reason_join_values,na.rm=T),3),
+            agree_decisions = round(mean(agree_decisions,na.rm=T),3),
+            agree_great_team = round(mean(agree_great_team,na.rm=T),3),
+            agree_problem_solve = round(mean(agree_problem_solve,na.rm=T),3),
+            agree_reco_great = round(mean(agree_reco_great,na.rm=T),3),
+            agree_true_self = round(mean(agree_true_self,na.rm=T),3),
+            job_char_diff = round(mean(job_char_diff,na.rm=T),3),
+            job_char_exciting = round(mean(job_char_exciting,na.rm=T),3),
+            job_char_fun = round(mean(job_char_fun,na.rm=T),3),
+            job_char_overwhelm = round(mean(job_char_overwhelm,na.rm=T),3),
+            job_char_social = round(mean(job_char_social,na.rm=T),3),
+            job_char_stress = round(mean(job_char_stress,na.rm=T),3),
+            retainedN = sum(retainedFY18FP4,na.rm=T),
+            retained = round(mean(retainedFY18FP4,na.rm=T),3))
+setDT(tempbin)
