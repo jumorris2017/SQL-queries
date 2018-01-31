@@ -45,12 +45,12 @@ db <- left_join(db,tenuredt,by="PartnerID")
 setDT(db)
 
 #keep only baristas
-db <- db[Store_Role=="Barista"]
-# db <- db[Store_Role=="Shift supervisor"]
+#db <- db[Store_Role=="Barista"]
+db <- db[Store_Role=="Shift supervisor"]
 
 #read in daypart data
-dp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/partner_domdaypart.csv") #baristas
-# dp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/partner_domdaypart_shifts.csv") #shifts
+# dp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/partner_domdaypart.csv") #baristas
+dp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/partner_domdaypart_shifts.csv") #shifts
 setnames(dp,"PRTNR_NUM","PartnerID")
 
 #recalcualate PM_DOM as necessary
@@ -82,6 +82,20 @@ db <- left_join(db,dp,by=c("PartnerID"))
 setDT(db)
 #drop baristas missing dominant daypart info
 db <- na.omit(db,cols="DOM")
+
+#pull in retention data
+# ap <- fread("//starbucks/amer/portal/Departments/WMO/Marketing Research/New Q drive/Partner Insights/Partner Perspectives/Research/Day Part Research/partner_retention.csv")
+ap <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/activepartners_2018-01-30.csv") 
+setnames(ap,"Personnel_Number","PartnerID")
+ap <- ap[PartnerID %in% unique(db[,PartnerID])]
+ap <- ap[!duplicated(ap$PartnerID),]
+ap[, retainedFY18FP4 := 1]
+#merge in
+db <- left_join(db,ap,by=c("PartnerID"))
+setDT(db)
+
+#convert retained NA's to 0's
+db[is.na(db[,retainedFY18FP4]), retainedFY18FP4 := 0]
 
 ##outliers
 #drop values where Sbux hours worked is 0 or >60 (same as Q1_7_Starbucks_Hours_Worked_Remove_Outliers)
@@ -323,10 +337,12 @@ tempbin <- db %>%
             job_char_fun = round(mean(job_char_fun,na.rm=T),3),
             job_char_overwhelm = round(mean(job_char_overwhelm,na.rm=T),3),
             job_char_social = round(mean(job_char_social,na.rm=T),3),
-            job_char_stress = round(mean(job_char_stress,na.rm=T),3))
+            job_char_stress = round(mean(job_char_stress,na.rm=T),3),
+            retainedN = sum(retainedFY18FP4,na.rm=T),
+            retained = round(mean(retainedFY18FP4,na.rm=T),3))
 setDT(tempbin)
 #write to .xlsx
-write.xlsx(tempbin,"O:/CoOp/CoOp194_PROReportng&OM/Julie/partnerdemos_domdaypart_shift_5cat.xlsx")
+write.xlsx(tempbin,"O:/CoOp/CoOp194_PROReportng&OM/Julie/partnerdemos_domdaypart_shift_3cat.xlsx")
 
 # #frequency table: education
 # temped <- db %>%

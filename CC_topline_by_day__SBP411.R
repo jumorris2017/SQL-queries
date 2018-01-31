@@ -19,6 +19,9 @@ setnames(cct, tolower(names(cct)))
 cct[, caldate := as.Date(caldate, format = "%d-%b-%y")]
 cct[, ccscore := as.numeric(ccscore)]
 
+#only keep data post august 2015
+cct <- cct[caldate>='2015-09-01']
+
 #recode holiday as binary
 cct[holidayflag=='N', holiday := 0];cct[holidayflag=='Y', holiday := 1]
 cct[, holidayflag := NULL]
@@ -34,7 +37,12 @@ setnames(pcchol,c("caldate"),c("ds"))
 pcchol[, holiday := as.character(holiday)]
 
 #prophet forecast model
-pr <- prophet(pcc, growth="linear", daily.seasonality=TRUE, weekly.seasonality=TRUE, holidays=pcchol)
+pr <- prophet(daily.seasonality=FALSE, weekly.seasonality=TRUE, holidays=pcchol)
+#pr <- prophet(pcc, growth="linear", daily.seasonality=FALSE, weekly.seasonality=TRUE, holidays=pcchol)
+#add monthly seasonality
+pr <- add_seasonality(pr, name='monthly', period=30.5, fourier.order=5)
+#fit model
+pr <- fit.prophet(pr,pcc)
 #dataframe returned from mode
 fcst <- predict(pr,pcc)
 #plot model
@@ -97,5 +105,24 @@ plot1 <- ggplot() +
 print(plot1)
 
 
+
+
+#library(mFilter)
+#Hodrick-Prescott filter
+temp <- pcc[,.(ds,y)]
+temp.hp1 <- hpfilter(temp[,y], freq=12,type="frequency",drift=TRUE)
+temp.hp2 <- hpfilter(temp[,y], freq=52,type="frequency",drift=TRUE)
+par(mfrow=c(2,1),mar=c(3,3,2,1),cex=.8)
+plot(temp.hp1$x, ylim=c(0.2,0.4),
+     main="Hodrick-Prescott filter of CC: Trend, drift=TRUE",
+     col=1, ylab="")
+lines(temp.hp1$trend,col=2)
+lines(temp.hp2$trend,col=3)
+legend("topleft",legend=c("series", 
+                          "freq=12", "freq=52"), col=1:3, lty=rep(1,3), ncol=1)
+plot(temp.hp1$cycle,
+     main="Hodrick-Prescott filter of CC: Cycle, drift=TRUE",
+     col=2, ylab="", ylim=range(temp.hp4$cycle,na.rm=TRUE))
+lines(temp.hp2$cycle,col=3)
 
 

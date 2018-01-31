@@ -2,11 +2,11 @@
 /* For Cambridge requests */
 
 /* Counts SR transactions associated with MID/ALTMID combinations */
-SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
-    WHERE ac.ALT_MRCHT_ID IN (47128) 
+SELECT ac.STORE_NUM, ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
+    WHERE ac.ALT_MRCHT_ID IN (28721) 
     --AND ac.MRCHT_ID IN (97056000003)
-    AND ac.TRANS_DT > '25-DEC-17' 
-    GROUP BY ac.MRCHT_ID, ac.ALT_MRCHT_ID
+    AND ac.TRANS_DT > '28-DEC-17' 
+    GROUP BY ac.STORE_NUM, ac.MRCHT_ID, ac.ALT_MRCHT_ID
 
 /* Counts SR transactions associated with MID/ALTMID combinations */
 SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
@@ -25,7 +25,7 @@ SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
 /* Laste date received SR transactions associated with MID/ALTMID combinations */
 SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, TRUNC(ac.TRANS_DT) FROM APPCA.F_CARD ac
     WHERE 
-    ac.ALT_MRCHT_ID IN (6893) AND ac.MRCHT_ID IN (97056000003)
+    ac.ALT_MRCHT_ID IN (47128) AND ac.MRCHT_ID IN (97053200002)
         --AND ac.TRANS_DT > '03-JUN-17' 
     ORDER BY TRUNC(ac.TRANS_DT) DESC 
 
@@ -42,9 +42,9 @@ WHERE sr.QSTN_ID = 'Q1'
 GROUP BY
    sr.STORE_NUM
 
-
+/* SURVEY COUNTS DATA TABLE */
 SELECT * FROM APPOTHER.AFT_CV_SRVY_RSPNS sr
-WHERE sr.STORE_NUM IN (47128)
+WHERE sr.STORE_NUM IN (47128) 
 
 
 /*
@@ -60,3 +60,7 @@ FROM
 ) 
 WHERE seq = 1
 */
+
+
+SELECT * FROM APPOTHER.AFT_CV_SRVY_RSPNS sr
+WHERE sr.STORE_NUM = 49913

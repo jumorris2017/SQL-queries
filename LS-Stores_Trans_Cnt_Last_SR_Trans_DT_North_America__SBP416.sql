@@ -2,7 +2,7 @@ SELECT
    a.MRCHT_ID
   ,a.ALT_MRCHT_ID
   ,b.LAST_TRANS_DT
-  ,a.TRANS_CNT AS FSCL_DEC_SR_TRANS_CNT -- UPDATE NAME
+  ,a.TRANS_CNT AS FSCL_JAN_SR_TRANS_CNT -- UPDATE NAME
 FROM (
 
 SELECT
@@ -14,7 +14,7 @@ FROM APPCA.F_CARD f
     
 WHERE f.SVC_TRANS_CTGY = 'Redemption'
   AND f.FSCL_YR_NUM = 2018
-  AND f.FSCL_WK_IN_YR_NUM BETWEEN 9 AND 13  --UPDATE WEEKS
+  AND f.FSCL_WK_IN_YR_NUM BETWEEN 14 AND 17  --UPDATE WEEKS
   AND f.SALES_CHNL_CD IN ('LS','ALTD','NYA')  -- not sure what ALTD is, but it's assocaited with a single MID for Albersons LS stores
                                               -- same with NYA (not yet associated?), but is is used for at least one LS merchant
   
@@ -33,7 +33,7 @@ LEFT JOIN (
 
   WHERE SVC_TRANS_CTGY = 'Redemption'
     AND FSCL_YR_NUM = 2018
-    AND FSCL_WK_IN_YR_NUM BETWEEN 9 AND 13  --UPDATE WEEKS
+    AND FSCL_WK_IN_YR_NUM BETWEEN 14 AND 17  --UPDATE WEEKS
     AND SALES_CHNL_CD IN ('LS','ALTD','NYA')
 
   GROUP BY
