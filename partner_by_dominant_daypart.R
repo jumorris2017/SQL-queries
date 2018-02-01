@@ -331,9 +331,6 @@ setnames(panel,c("PanelistAlternateId"),c("PRTNR_NUM"))
 #keep dp rows where partner numbers are in the panelist id file
 dp <- dp[PRTNR_NUM %in% unique(panel[,PRTNR_NUM])]
 dp <- dp[!duplicated(dp$PRTNR_NUM),]
-panel <- panel[PRTNR_NUM %in% unique(dp[,PRTNR_NUM])]
-panel <- panel[!duplicated(panel$PRTNR_NUM),]
-dpanel <- merge(dp,panel,by="PRTNR_NUM",all=F)
 
 ##read in tenure data
 tenuredt <- read.csv("//starbucks/amer/portal/Departments/WMO/Marketing Research/New Q drive/Partner Insights/Partner Perspectives/Research/Partner Life Survey/Data/partner_tenure.csv", fileEncoding="UTF-8-BOM")
@@ -360,27 +357,30 @@ tenuredt[job_months<3, less3mo_jobmonths := 1]; tenuredt[job_months>=3, less3mo_
 dpanel <- merge(dpanel,tenuredt,by="PRTNR_NUM")
 
 #group into 3 groups
-dpanel[ddp_tie_first=="earlyam_prp"|ddp_tie_first=="am_prp"|ddp_tie_first=="midday_prp", DOM3 := "1-AMMidday"]
-dpanel[ddp_tie_first=="pm_prp", DOM3 := "2-PM"]
-dpanel[ddp_tie_first=="latepm_prp", DOM3 := "3-LatePM"]
+dp[ddp_tie_first=="earlyam_prp"|ddp_tie_first=="am_prp"|ddp_tie_first=="midday_prp", DOM3 := "1-AMMidday"]
+dp[ddp_tie_first=="pm_prp", DOM3 := "2-PM"]
+dp[ddp_tie_first=="latepm_prp", DOM3 := "3-LatePM"]
 
-dpanelpmam <- dpanel[DOM3=="1-AMMidday"|DOM3=="2-PM"]
-t.test(job_months ~ DOM3, data=dpanelpmam[JOB_ID==50000362])
-t.test(sbux_months ~ DOM3, data=dpanelpmam[JOB_ID==50000362])
-t.test(less6mo_jobmonths ~ DOM3, data=dpanelpmam[JOB_ID==50000362])
+#sample sizes
+dp[,.N,by=c("JOB_ID","DOM3")]
 
-#group into 2 groups
-dpanel[ddp_tie_first=="earlyam_prp"|ddp_tie_first=="am_prp"|ddp_tie_first=="midday_prp", DOM2 := "1-AMMidday"]
-dpanel[ddp_tie_first=="pm_prp"|ddp_tie_first=="latepm_prp", DOM2 := "2-PMLatePM"]
-t.test(job_months ~ DOM2, data=dpanel[JOB_ID==50000358])
-t.test(sbux_months ~ DOM2, data=dpanel[JOB_ID==50000358])
-t.test(less6mo_jobmonths ~ DOM2, data=dpanel[JOB_ID==50000358])
+# dpanelpmam <- dpanel[DOM3=="1-AMMidday"|DOM3=="2-PM"]
+# t.test(job_months ~ DOM3, data=dpanelpmam[JOB_ID==50000362])
+# t.test(sbux_months ~ DOM3, data=dpanelpmam[JOB_ID==50000362])
+# t.test(less6mo_jobmonths ~ DOM3, data=dpanelpmam[JOB_ID==50000362])
+# 
+# #group into 2 groups
+# dpanel[ddp_tie_first=="earlyam_prp"|ddp_tie_first=="am_prp"|ddp_tie_first=="midday_prp", DOM2 := "1-AMMidday"]
+# dpanel[ddp_tie_first=="pm_prp"|ddp_tie_first=="latepm_prp", DOM2 := "2-PMLatePM"]
+# t.test(job_months ~ DOM2, data=dpanel[JOB_ID==50000358])
+# t.test(sbux_months ~ DOM2, data=dpanel[JOB_ID==50000358])
+# t.test(less6mo_jobmonths ~ DOM2, data=dpanel[JOB_ID==50000358])
 
 #do not work PM
-dpanel[pm_prp==0, YESPM := 0];dpanel[pm_prp>0, YESPM := 1]
-dpanel[JOB_ID==50000362&YESPM==0,mean(less6mo_jobmonths,na.rm=T)]
+dp[pm_prp==0, YESPM := 0];dp[pm_prp>0, YESPM := 1]
+dp[JOB_ID==50000362&YESPM==0,mean(less6mo_jobmonths,na.rm=T)]
 
-tempbin <- dpanel %>%
+tempbin <- dp %>%
   group_by(JOB_ID,DOM3) %>%
   summarize(n = n(), 
             less6mo_jobmonthsN = sum(less6mo_jobmonths,na.rm=T),
