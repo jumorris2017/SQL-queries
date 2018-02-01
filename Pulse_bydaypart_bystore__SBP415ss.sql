@@ -23,7 +23,6 @@ SELECT
     ,c.STORE_NUM_ASSIGNED
 
 
-
 /*export as "pulse_q2d_byhour_bypartner_q1fy18.csv"*/
 SELECT 
     b.PRTNR_ID as PRTNR_NUM
