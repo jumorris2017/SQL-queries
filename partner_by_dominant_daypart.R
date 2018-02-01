@@ -263,7 +263,8 @@ write.xlsx(tempbin2,"O:/CoOp/CoOp194_PROReportng&OM/Julie/temp_final_survey_q5_b
 
 
 
-
+##CONNECTING TO PARTNER EXPERIENCE SURVEY
+#FULL PARTNER SAMPLE 
 #for selecting sample, pull in panel ids
 dp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/baristas-shifts_bydaypart_dec4-17_2017.csv")
 dp[, V1 := NULL]
@@ -321,7 +322,7 @@ write.xlsx(tempbin,"O:/CoOp/CoOp194_PROReportng&OM/Julie/partnerexp_grouped.xlsx
 
 
 
-
+##TENURE DATA FROM FULL SAMPLE
 #for selecting sample, pull in panel ids
 dp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/baristas-shifts_bydaypart_dec4-17_2017.csv")
 dp[, V1 := NULL]
@@ -351,7 +352,6 @@ tenuredt[, sbux_days := as.numeric(sbux_days)]
 tenuredt[, sbux_months := round(sbux_days/30.4167,0)]
 tenuredt[, sbux_years := round(sbux_days/365,1)]
 
-
 #binary for less than 6 months job tenure
 tenuredt[job_months<6, less6mo_jobmonths := 1]; tenuredt[job_months>=6, less6mo_jobmonths := 0]
 #binary for less than 3 months job tenure
@@ -365,11 +365,15 @@ dpanel[ddp_tie_first=="pm_prp", DOM3 := "2-PM"]
 dpanel[ddp_tie_first=="latepm_prp", DOM3 := "3-LatePM"]
 
 dpanelpmam <- dpanel[DOM3=="1-AMMidday"|DOM3=="2-PM"]
+t.test(job_months ~ DOM3, data=dpanelpmam[JOB_ID==50000362])
+t.test(sbux_months ~ DOM3, data=dpanelpmam[JOB_ID==50000362])
 t.test(less6mo_jobmonths ~ DOM3, data=dpanelpmam[JOB_ID==50000362])
 
 #group into 2 groups
 dpanel[ddp_tie_first=="earlyam_prp"|ddp_tie_first=="am_prp"|ddp_tie_first=="midday_prp", DOM2 := "1-AMMidday"]
 dpanel[ddp_tie_first=="pm_prp"|ddp_tie_first=="latepm_prp", DOM2 := "2-PMLatePM"]
+t.test(job_months ~ DOM2, data=dpanel[JOB_ID==50000358])
+t.test(sbux_months ~ DOM2, data=dpanel[JOB_ID==50000358])
 t.test(less6mo_jobmonths ~ DOM2, data=dpanel[JOB_ID==50000358])
 
 #do not work PM
