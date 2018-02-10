@@ -16,11 +16,17 @@ cct <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_topline_by_day.csv")
 setnames(cct, tolower(names(cct)))
 
 #update variable classes
-cct[, caldate := as.Date(caldate, format = "%d-%b-%y")]
+cct[, caldate := as.Date(caldate, format = "%Y-%m-%d")]
 cct[, ccscore := as.numeric(ccscore)]
+#create a separate db that is just the latest 3 weeks for validating
+cctforcheck <- cct[caldate>'2018-01-13']
+cctforcheck <- cctforcheck[, .(caldate,ccscore)]
 
 #only keep data post august 2015
 cct <- cct[caldate>='2015-09-01']
+
+#omit the latest 3 weeks for validating
+cct <- cct[caldate<='2018-01-13']
 
 #recode holiday as binary
 cct[holidayflag=='N', holiday := 0];cct[holidayflag=='Y', holiday := 1]
@@ -49,11 +55,28 @@ fcst <- predict(pr,pcc)
 prophet_plot_components(pr, fcst, uncertainty = TRUE, plot_cap = TRUE,
                         weekly_start = 0, yearly_start = 0)
 #predict forward
-future <- make_future_dataframe(pr, periods = 185)
+future <- make_future_dataframe(pr, periods = 28)
 forecast <- predict(pr, future)
 plot(pr, forecast, xlab="Calendar Date", ylab="Customer Connection")
 #sample from posterior preditive distribution
 predictive_samples(pr, pcc)
+
+#merge together predicated and actual
+forecastforcheck <- setDT(forecast)[, .(ds,trend)]
+forecastforcheck <- forecastforcheck[ds>'2018-01-13']
+setnames(forecastforcheck,c("ds","trend"),c("caldate","ccpred"))
+forecastforcheck[, caldate := as.Date(caldate, format = "%Y-%m-%d")]
+#merge together
+predvactual <- merge(cctforcheck,forecastforcheck,by="caldate")
+predvactual[, ccdelta := round(ccpred-ccscore,4)]
+
+#average across the week
+predvactual[caldate>='2018-01-14'&caldate>='2018-01-20', week := 1]
+predvactual[caldate>='2018-01-21'&caldate>='2018-01-27', week := 2]
+predvactual[caldate>='2018-01-28'&caldate>='2018-02-03', week := 3]
+predvactual[, list(ccscore = round(mean(ccscore),3)*100,
+                     ccpred = round(mean(ccpred),3)*100,
+                     ccdelta = round(mean(ccpred)-mean(ccscore),3)*100), by="week"]
 
 
 

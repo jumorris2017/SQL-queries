@@ -1,5 +1,5 @@
 /*query for CC score and survey counts by daypart by store */
-
+/*CAW*/
 WITH sq AS
 (SELECT DISTINCT
   TO_CHAR(sr.TRANS_DTM, 'HH24') AS HOUR
@@ -37,7 +37,7 @@ LEFT JOIN APPOTHER.CUST_INS_WEIGHTS w
   --AND sr.STORE_NUM = 349
   --AND ((ca.FSCL_YR_NUM = 2018 AND ca.FSCL_QTR_IN_YR_NUM = 1) OR (ca.FSCL_YR_NUM = 2017 AND ca.FSCL_QTR_IN_YR_NUM = 4)) 
   --AND (ca.FSCL_YR_NUM = 2018 AND ca.FSCL_QTR_IN_YR_NUM = 1) 
-  AND (ca.FSCL_YR_NUM = 2018 AND ca.FSCL_PER_IN_YR_NUM >= 2 AND ca.FSCL_PER_IN_YR_NUM <= 3) 
+  AND ((ca.FSCL_YR_NUM = 2018 AND ca.FSCL_PER_IN_YR_NUM <= 4) OR (ca.FSCL_YR_NUM = 2017 AND ca.FSCL_PER_IN_YR_NUM >= 11))
 
 GROUP BY
   TO_CHAR(sr.TRANS_DTM, 'HH24') 
@@ -55,17 +55,17 @@ SELECT sq.STORE_NUM
 ,ROUND(SUM(sq.TOTAL_TB)/SUM(sq.TOTAL_RSPNS),3) AS CC_SCORE
 ,sq.FSCL_YR_NUM
 --,sq.FSCL_QTR_IN_YR_NUM
---,sq.FSCL_PER_IN_YR_NUM
+,sq.FSCL_PER_IN_YR_NUM
 FROM sq
 GROUP BY sq.STORE_NUM
 ,sq.QSTN_ID
 ,sq.DAY_PART
 ,sq.FSCL_YR_NUM
 --,sq.FSCL_QTR_IN_YR_NUM
---,sq.FSCL_PER_IN_YR_NUM
+,sq.FSCL_PER_IN_YR_NUM
 ORDER BY sq.FSCL_YR_NUM
 --,sq.FSCL_QTR_IN_YR_NUM
---,sq.FSCL_PER_IN_YR_NUM
+,sq.FSCL_PER_IN_YR_NUM
 ,sq.DAY_PART
 
 
@@ -144,13 +144,13 @@ ORDER BY sq.FSCL_YR_NUM
 
 
 
-
-/*rolling 2 - by store - no daypart*/
-/*canada*/
+/*
+--/rolling 2 - by store - no daypart/
+--/canada/
 WITH sq AS
 (SELECT DISTINCT
   sr.QSTN_ID
-  ,SUM(CASE  WHEN sr.RSPNS_ID = '5' AND sr.QSTN_ID = 'Q1' THEN COALESCE(w.WEIGHT_RT,1) /* coalesce returns non-null weight value, OR if null, returns 1 */
+  ,SUM(CASE  WHEN sr.RSPNS_ID = '5' AND sr.QSTN_ID = 'Q1' THEN COALESCE(w.WEIGHT_RT,1) 
     WHEN sr.RSPNS_ID = '7' THEN COALESCE(w.WEIGHT_RT,1) ELSE 0 END) AS TOTAL_TB
   ,SUM(COALESCE(w.WEIGHT_RT,1)) AS TOTAL_RSPNS
   ,ca.FSCL_YR_NUM
@@ -196,10 +196,4 @@ sq.QSTN_ID
 ,sq.STORE_NUM
 ORDER BY sq.FSCL_YR_NUM
 ,sq.FSCL_PER_IN_YR_NUM
-
-
-
-
-
-
-
+*/
