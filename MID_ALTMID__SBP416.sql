@@ -4,9 +4,9 @@
 /* Counts SR transactions associated with MID/ALTMID combinations */
 SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
     WHERE 
-    ac.MRCHT_ID IN (97189600000) 
-    --ac.ALT_MRCHT_ID IN (53017) 
-    AND ac.TRANS_DT > '07-JAN-18' 
+    ac.MRCHT_ID IN (97056000003) 
+    AND ac.ALT_MRCHT_ID IN (49522) 
+    AND ac.TRANS_DT > '07-NOV-18' 
     GROUP BY ac.MRCHT_ID, ac.ALT_MRCHT_ID
 
 /* Counts SR transactions associated with MID/ALTMID combinations */
@@ -25,10 +25,12 @@ SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
 
 /* Laste date received SR transactions associated with MID/ALTMID combinations */
 SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, TRUNC(ac.TRANS_DT) FROM APPCA.F_CARD ac
-    WHERE ac.MRCHT_ID IN (88430079741005)
-    -- AND ac.ALT_MRCHT_ID IN (47128) 
+    WHERE 
+    --ac.MRCHT_ID IN (97056000003)
+    --AND 
+    ac.ALT_MRCHT_ID IN (41096) 
         --AND ac.TRANS_DT > '03-JUN-17' 
-    ORDER BY TRUNC(ac.TRANS_DT) DESC 
+    ORDER BY ac.ALT_MRCHT_ID, TRUNC(ac.TRANS_DT) DESC 
 
 /*SR transactions per month associated with MID/ALTMID combinations */
 SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) AS TRANS FROM APPCA.F_CARD ac
@@ -48,14 +50,15 @@ SELECT
   ,MAX(TRUNC(sr.TRANS_DTM)) AS LATEST_RSPNS_DT
 FROM APPOTHER.AFT_CV_SRVY_RSPNS sr
 WHERE sr.QSTN_ID = 'Q1'
-  AND sr.STORE_NUM IN (49715 )
-  AND TRUNC(sr.TRANS_DTM) >= '01-JAN-2018'
+  AND sr.STORE_NUM IN (24088)
+  --AND TRUNC(sr.TRANS_DTM) >= '01-JAN-2018'
 GROUP BY
    sr.STORE_NUM
 
+
 /* SURVEY COUNTS DATA TABLE */
 SELECT * FROM APPOTHER.AFT_CV_SRVY_RSPNS sr
-WHERE sr.STORE_NUM IN (50436) 
+WHERE sr.STORE_NUM IN (76622) 
 
 
 /*

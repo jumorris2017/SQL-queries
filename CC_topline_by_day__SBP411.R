@@ -43,7 +43,7 @@ setnames(pcchol,c("caldate"),c("ds"))
 pcchol[, holiday := as.character(holiday)]
 
 #prophet forecast model
-pr <- prophet(daily.seasonality=FALSE, weekly.seasonality=TRUE, holidays=pcchol)
+pr <- prophet(daily.seasonality=FALSE, yearly.seasonality=TRUE, holidays=pcchol)
 #pr <- prophet(pcc, growth="linear", daily.seasonality=FALSE, weekly.seasonality=TRUE, holidays=pcchol)
 #add monthly seasonality
 pr <- add_seasonality(pr, name='monthly', period=30.5, fourier.order=5)
