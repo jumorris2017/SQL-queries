@@ -1,12 +1,15 @@
 ## Topline CC Prediction ##
 ## forecasting basic time trend ##
 
+##USING PROPHET
+
 #load libraries
 library(data.table)
 library(ggplot2)
 library(forecast)
 library(zoo)
 library(prophet)
+library(mFilter)
 set.seed(98115)
 
 #load data
@@ -55,7 +58,7 @@ fcst <- predict(pr,pcc)
 prophet_plot_components(pr, fcst, uncertainty = TRUE, plot_cap = TRUE,
                         weekly_start = 0, yearly_start = 0)
 #predict forward
-future <- make_future_dataframe(pr, periods = 28)
+future <- make_future_dataframe(pr, periods = 25) 
 forecast <- predict(pr, future)
 plot(pr, forecast, xlab="Calendar Date", ylab="Customer Connection")
 #sample from posterior preditive distribution
@@ -71,12 +74,85 @@ predvactual <- merge(cctforcheck,forecastforcheck,by="caldate")
 predvactual[, ccdelta := round(ccpred-ccscore,4)]
 
 #average across the week
-predvactual[caldate>='2018-01-14'&caldate>='2018-01-20', week := 1]
-predvactual[caldate>='2018-01-21'&caldate>='2018-01-27', week := 2]
-predvactual[caldate>='2018-01-28'&caldate>='2018-02-03', week := 3]
-predvactual[, list(ccscore = round(mean(ccscore),3)*100,
-                     ccpred = round(mean(ccpred),3)*100,
-                     ccdelta = round(mean(ccpred)-mean(ccscore),3)*100), by="week"]
+predvactual[caldate>='2018-01-14'&caldate<='2018-01-20', week := 1]
+predvactual[caldate>='2018-01-21'&caldate<='2018-01-27', week := 2]
+predvactual[caldate>='2018-01-28'&caldate<='2018-02-03', week := 3]
+predvactual[caldate>='2018-02-04'&caldate<='2018-02-07', week := 4]
+predvactual[, list(ccscore = round(mean(ccscore),4)*100,
+                     ccpred = round(mean(ccpred),4)*100,
+                     ccdelta = round(mean(ccpred)-mean(ccscore),4)*100), by="week"]
+
+#library(mFilter)
+#Hodrick-Prescott filter
+temp <- pcc[,.(ds,y)]
+temp <- setorder(temp,ds)
+temp.hp1 <- hpfilter(temp[,y], freq=12,type="frequency",drift=TRUE)
+temp.hp2 <- hpfilter(temp[,y], freq=52,type="frequency",drift=TRUE)
+temp.hp3 <- hpfilter(temp[,y], freq=129600,type="lambda",drift=TRUE)
+par(mfrow=c(2,1),mar=c(3,3,2,1),cex=.8)
+plot(temp.hp1$x, ylim=c(0.2,0.4),
+     main="Hodrick-Prescott filter of CC: Trend, drift=TRUE",
+     col=1, ylab="")
+lines(temp.hp1$trend,col=2)
+lines(temp.hp2$trend,col=3)
+lines(temp.hp3$trend,col=3)
+legend("topleft",legend=c("series", 
+                          "freq=12", "freq=52", "lambda=129,600"), col=1:4, lty=rep(1,4), ncol=1)
+plot(temp.hp1$cycle,
+     main="Hodrick-Prescott filter of CC: Cycle, drift=TRUE",
+     col=2, ylab="", ylim=range(temp.hp1$cycle,na.rm=TRUE))
+lines(temp.hp2$cycle,col=4)
+
+#library(tseries)
+#test for unit root
+temp <- pcc[,.(ds,y)]
+temp <- setorder(temp,ds)
+temp <- as.matrix(temp[,.(y)])
+adf.test(temp[,"y"],k=1)
+#library(forecast)
+fit <- auto.arima(temp[,"y"], start.p = 1, start.q = 1)
+res <- residuals(fit)
+Box.test(res) #box-pierce test
+
+#qq plot
+temp <- pcc[,.(ds,y)]
+temp <- setorder(temp,ds)
+temp <- as.matrix(temp[,.(y)])
+qqnorm(temp[,"y"],main = "Normal Q-Q Plot",
+       xlab = "Theoretical Quantiles", ylab = "Sample Quantiles",
+       plot.it = TRUE, datax = FALSE)
+qqline(temp[,"y"], datax = FALSE)
+
+#library(forecast)
+# temp[,"y"] %>% forecast %>% plot
+# fit <- ets(window(temp[,"y"], end=60))
+# fc <- forecast(temp[,"y"], model=fit)
+
+##library(forecast)
+temp <- pcc[,.(ds,y)]
+temp <- setorder(temp,ds)
+temp <- as.matrix(temp[,.(y)])
+fit <- auto.arima(temp)
+fc <- forecast(fit,h=25)
+predvalues <- fc$mean[1:25]
+plot(forecast(fit,h=25))
+#residuals and box test
+Acf(residuals(fit))
+Box.test(residuals(fit), type="Ljung")
+
+#merge together
+cctforcheck <- setorder(cctforcheck,caldate)
+predvactual <- cbind(cctforcheck,predvalues)
+predvactual[, ccdelta := round(predvalues-ccscore,4)]
+
+#average across the week
+predvactual[caldate>='2018-01-14'&caldate<='2018-01-20', week := 1]
+predvactual[caldate>='2018-01-21'&caldate<='2018-01-27', week := 2]
+predvactual[caldate>='2018-01-28'&caldate<='2018-02-03', week := 3]
+predvactual[caldate>='2018-02-04'&caldate<='2018-02-07', week := 4]
+predvactual[, list(ccscore = round(mean(ccscore),4)*100,
+                   predvalues = round(mean(predvalues),4)*100,
+                   ccdelta = round(mean(predvalues)-mean(ccscore),4)*100), by="week"]
 
 
 
@@ -118,34 +194,13 @@ predvactual[, list(ccscore = round(mean(ccscore),3)*100,
 # ## plot it
 # plot(fore)
 
+# #compare to Tableau dashes
+# #average across months
+# cctm <- cct[, list(ccscore = mean(ccscore,na.rm=T)), by=c("calmonth","calyear")]
+# plot1 <- ggplot() +
+#   geom_line(data=cctm, aes(x=calmonth, y=ccscore, group=factor(calyear), colour=factor(calyear))) +
+#   scale_y_continuous(limits=c(0,.35))
+# print(plot1)
 
-#compare to Tableau dashes
-#average across months
-cctm <- cct[, list(ccscore = mean(ccscore,na.rm=T)), by=c("calmonth","calyear")]
-plot1 <- ggplot() +
-  geom_line(data=cctm, aes(x=calmonth, y=ccscore, group=factor(calyear), colour=factor(calyear))) +
-  scale_y_continuous(limits=c(0,.35))
-print(plot1)
-
-
-
-
-#library(mFilter)
-#Hodrick-Prescott filter
-temp <- pcc[,.(ds,y)]
-temp.hp1 <- hpfilter(temp[,y], freq=12,type="frequency",drift=TRUE)
-temp.hp2 <- hpfilter(temp[,y], freq=52,type="frequency",drift=TRUE)
-par(mfrow=c(2,1),mar=c(3,3,2,1),cex=.8)
-plot(temp.hp1$x, ylim=c(0.2,0.4),
-     main="Hodrick-Prescott filter of CC: Trend, drift=TRUE",
-     col=1, ylab="")
-lines(temp.hp1$trend,col=2)
-lines(temp.hp2$trend,col=3)
-legend("topleft",legend=c("series", 
-                          "freq=12", "freq=52"), col=1:3, lty=rep(1,3), ncol=1)
-plot(temp.hp1$cycle,
-     main="Hodrick-Prescott filter of CC: Cycle, drift=TRUE",
-     col=2, ylab="", ylim=range(temp.hp4$cycle,na.rm=TRUE))
-lines(temp.hp2$cycle,col=3)
 
 
