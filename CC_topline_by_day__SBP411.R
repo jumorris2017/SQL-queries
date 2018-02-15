@@ -10,6 +10,8 @@ library(forecast)
 library(zoo)
 library(prophet)
 library(mFilter)
+library(censReg)
+library(stringr)
 set.seed(98115)
 
 #load data
@@ -108,7 +110,7 @@ lines(temp.hp2$cycle,col=4)
 temp <- pcc[,.(ds,y)]
 temp <- setorder(temp,ds)
 temp <- as.matrix(temp[,.(y)])
-adf.test(temp[,"y"],k=1)
+tseries::adf.test(temp[,"y"],k=1)
 #library(forecast)
 fit <- auto.arima(temp[,"y"], start.p = 1, start.q = 1)
 res <- residuals(fit)
@@ -132,7 +134,7 @@ qqline(temp[,"y"], datax = FALSE)
 temp <- pcc[,.(ds,y)]
 temp <- setorder(temp,ds)
 temp <- as.matrix(temp[,.(y)])
-fit <- auto.arima(temp)
+fit <- auto.arima(temp,allowdrift=T)
 fc <- forecast(fit,h=25)
 predvalues <- fc$mean[1:25]
 plot(forecast(fit,h=25))
@@ -202,5 +204,53 @@ predvactual[, list(ccscore = round(mean(ccscore),4)*100,
 #   scale_y_continuous(limits=c(0,.35))
 # print(plot1)
 
+
+
+#predictive modeling
+ccwk <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_predmodel_ccscores.csv") #home store customers
+hswk <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_predmodel_homestore.csv") #home store customers
+ptwk <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_predmodel_partnertenure.csv") #partner tenure
+tsdwk <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_predmodel_tsd.csv") #TSDs
+ccwkdt <- Reduce(function(x, y) {merge(x, y, by=c("STORE_NUM", "FSCL_WK_IN_YR_NUM", "FSCL_YR_NUM"), all = TRUE)}, list(hswk,ptwk,tsdwk,ccwk))
+ccwkdt <- ccwkdt[FSCL_YR_NUM<=2017|(FSCL_YR_NUM==2018&FSCL_WK_IN_YR_NUM<=19)]
+# #agg at week level
+# ccwkdt <- ccwkdt[, list(cc = sum(Q2_2_TB_CNT,na.rm=T)/sum(Q2_2_RESPONSE_TOTAL,na.rm=T),
+#                         hs = sum(HS_CUST_COUNT,na.rm=T)/sum(ALL_CUST_COUNT,na.rm=T),
+#                         pt = mean(AVG_COMP_TENURE,na.rm=T),
+#                         tsd = sum(CustTrans,na.rm=T)/sum(day_count,na.rm=T)),
+#                         by=c("FSCL_WK_IN_YR_NUM","FSCL_YR_NUM")]
+# setorder(ccwkdt,FSCL_YR_NUM,FSCL_WK_IN_YR_NUM)
+#agg at the store-week level
+ccwkdt <- ccwkdt[, list(cc = sum(Q2_2_TB_CNT,na.rm=T)/sum(Q2_2_RESPONSE_TOTAL,na.rm=T),
+                        hs = sum(HS_CUST_COUNT,na.rm=T)/sum(ALL_CUST_COUNT,na.rm=T),
+                        pt = mean(AVG_COMP_TENURE,na.rm=T),
+                        tsd = sum(CustTrans,na.rm=T)/sum(day_count,na.rm=T)),
+                 by=c("FSCL_WK_IN_YR_NUM","FSCL_YR_NUM","STORE_NUM")]
+setorder(ccwkdt,FSCL_YR_NUM,FSCL_WK_IN_YR_NUM)
+#create a lag for cc
+ccwkdt[, lag_cc := lapply(.SD, function(x) c(NA, x[-.N])), by="STORE_NUM", .SDcols="cc"]
+
+#make time-series indicator from years and weeks
+ccwkdt[, week := str_pad(round((FSCL_WK_IN_YR_NUM/54)*100,0), 2, pad = "0")]
+ccwkdt[, ts := as.numeric(paste0(FSCL_YR_NUM,".",week))]
+
+#list-wise delete
+ccwkdt <- na.omit(ccwkdt)
+
+# #run a tobit regression censored between 0 and 1
+# tobit1 <- censReg(cc ~ hs + pt + tsd, left = 0, right = 1, data = ccwkdt)
+# summary.censReg(tobit1)
+
+#run a linear regression since no observations censored
+lm0 <- lm(cc ~ lag_cc, data = ccwkdt)
+summary(lm0)
+lm1 <- lm(cc ~ lag_cc + ts, data = ccwkdt)
+summary(lm1)
+lm2 <- lm(cc ~ hs + pt + tsd + lag_cc, data = ccwkdt)
+summary(lm2)
+lm3 <- lm(cc ~ hs + pt + tsd + lag_cc + ts, data = ccwkdt)
+summary(lm3)
+#compare the nested models
+anova(lm0,lm1,test="Chisq")
 
 
