@@ -227,12 +227,15 @@ ccwkdt <- ccwkdt[, list(cc = sum(Q2_2_TB_CNT,na.rm=T)/sum(Q2_2_RESPONSE_TOTAL,na
                         tsd = sum(CustTrans,na.rm=T)/sum(day_count,na.rm=T)),
                  by=c("FSCL_WK_IN_YR_NUM","FSCL_YR_NUM","STORE_NUM")]
 setorder(ccwkdt,FSCL_YR_NUM,FSCL_WK_IN_YR_NUM)
+#remove week 53
+ccwkdt <- ccwkdt[FSCL_WK_IN_YR_NUM<53]
 #create a lag for cc
-ccwkdt[, lag_cc := lapply(.SD, function(x) c(NA, x[-.N])), by="STORE_NUM", .SDcols="cc"]
+ccwkdt[, lag_cc_lw := lapply(.SD, function(x) c(NA, x[-.N])), by="STORE_NUM", .SDcols="cc"]
+ccwkdt[, lag_cc_ly := lapply(.SD, function(x) c(NA, x[-.N])), by=c("STORE_NUM","FSCL_WK_IN_YR_NUM"), .SDcols="cc"]
 
-#make time-series indicator from years and weeks
-ccwkdt[, week := str_pad(round((FSCL_WK_IN_YR_NUM/54)*100,0), 2, pad = "0")]
-ccwkdt[, ts := as.numeric(paste0(FSCL_YR_NUM,".",week))]
+# #make time-series indicator from years and weeks
+# ccwkdt[, week := str_pad(round((FSCL_WK_IN_YR_NUM/53)*100,0), 2, pad = "0")]
+# ccwkdt[, ts := as.numeric(paste0(FSCL_YR_NUM,".",week))]
 
 #list-wise delete
 ccwkdt <- na.omit(ccwkdt)
@@ -242,15 +245,15 @@ ccwkdt <- na.omit(ccwkdt)
 # summary.censReg(tobit1)
 
 #run a linear regression since no observations censored
-lm0 <- lm(cc ~ lag_cc, data = ccwkdt)
+lm0 <- lm(cc ~ lag_cc_lw, data = ccwkdt[FSCL_YR_NUM==2018])
 summary(lm0)
-lm1 <- lm(cc ~ lag_cc + ts, data = ccwkdt)
+lm1 <- lm(cc ~ lag_cc_lw + lag_cc_ly, data = ccwkdt[FSCL_YR_NUM==2018])
 summary(lm1)
-lm2 <- lm(cc ~ hs + pt + tsd + lag_cc, data = ccwkdt)
+lm2 <- lm(cc ~ hs + pt + tsd + lag_cc_lw, data = ccwkdt[FSCL_YR_NUM==2018])
 summary(lm2)
-lm3 <- lm(cc ~ hs + pt + tsd + lag_cc + ts, data = ccwkdt)
+lm3 <- lm(cc ~ hs + pt + tsd + lag_cc_lw + lag_cc_ly, data = ccwkdt[FSCL_YR_NUM==2018])
 summary(lm3)
 #compare the nested models
-anova(lm0,lm1,test="Chisq")
+anova(lm0,lm1,lm2,lm3,test="Chisq")
 
 
