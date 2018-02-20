@@ -64,3 +64,32 @@ SELECT
     ,j.Job_Key
 
 
+
+
+SELECT 
+    b.PRTNR_ID as PersonnelNumber
+    ,a.[surveyRespDate]
+    ,a.Question_ID
+    ,a.RespID
+    ,c.STORE_NUM_ASSIGNED
+    ,c.STORE_NUM_WORKED
+    ,c.[JOB_ID]
+	  ,year(a.surveyRespDate) as survYear
+	FROM Surveys.MOODRING.Survey_Responses a
+	LEFT JOIN [Surveys].[MOODRING].[PDW_PRTNR_ID_HASH] b
+		ON a.PartnerID = b.PRTNR_ID_MD5_HASHED
+  LEFT JOIN [Surveys].[MOODRING].[Last_Matching_Shift] c
+		ON (a.caseID = c.caseID AND a.surveyRespDate = c.surveyRespDate)
+    --WHERE year(a.surveyRespDate) = 2018
+    --a.surveyRespDate > '01/01/2017 11:59:59 PM'
+    --OR (a.surveyRespDate > '01/01/2017 11:59:59 PM' AND a.surveyRespDate < '02/26/2017 11:59:59 PM'))
+  GROUP BY 
+    b.PRTNR_ID
+    ,a.[surveyRespDate]
+    ,a.Question_ID
+    ,a.RespID
+    ,c.STORE_NUM_ASSIGNED
+    ,c.STORE_NUM_WORKED
+    ,c.[JOB_ID]
+    ,year(a.surveyRespDate)
+   ORDER BY a.surveyRespDate desc
