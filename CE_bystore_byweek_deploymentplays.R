@@ -7,16 +7,21 @@
 library(data.table)
 library(ggplot2)
 library(tidyverse)
+library(ggthemes)
 
 #group by stores that *are* or *are not* using the new plays
 
 #load data
 dp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/CE_deploymentplays.csv")
-# strlist <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/APT_Test_and_Control_site_mapping.csv")
+strlist <- fread("Q:/Departments/WMO/Marketing Research/New Q drive/Partner Insights/Project Mood Ring/Email Mood Ring Solution 2017/Data & Reporting/Pulse_All_Responses_w_Matched_Shift.csv")
+strlist <- strlist[QUESTION_ID=='Q2_FA']
+strlist[QUESTION_ID=='Q2_FA'&RESP_ID==1, useploy := 1]; strlist[QUESTION_ID=='Q2_FA'&(RESP_ID==2|RESP_ID==3), useploy := 0]
+strlist <- strlist[JOB_ID==50000117]
+setnames(strlist,"STORE_NUM_WORKED","STORE_NUM")
+strlist <- strlist[,.(STORE_NUM,useploy)]
 
-#group by stores using/not using plays
-###this is fake for setting up code
-dp[STORE_NUM %in% strlist[,stores_test], useploy := 0]; dp[STORE_NUM %in% strlist[,stores_control], useploy := 1]
+#MERGE TOGETHER
+dp <- merge(dp,strlist,by="STORE_NUM")
 dp <- na.omit(dp,cols="useploy")
 
 #agg by week
@@ -92,7 +97,7 @@ xlabel2a <- c("Fiscal Week")
 ylabel2a <- "YoY Delta"
 tlabel2a <- "Deployment Play Utilization on Customer Experience"
 sublabel2a <- "Customer Connection and Store Operations YoY Deltas"
-caption2a <- "Deployment Activities Timeline sent to SMs:\nFW17 - Understand the change for yourself and your team\nFW18 - Prepare to lead the change for your team\nFW20 - Lead the change for your team"
+caption2a <- "Deployment Activities Timeline sent to SMs:\nFW17 - Understand the change for yourself and your team\nFW18 - Prepare to lead the change for your team\nFW20 - Lead the change for your team\nN = 533 stores (432 utilizing plays, 101 not utilizing plays)"
 #manual legend labels
 lname12a <- "CE Metric"
 llabels12a <- c("Customer Connection","Store Operations")
@@ -119,3 +124,30 @@ plot2a <- ggplot(data=pdata2a, aes(x=px2a, y=py2a, colour=factor(colourvar2a), l
   scale_y_continuous(limits=c(-4,4)) + theme_economist() +
   ggtitle(tlabel2a) + labs(subtitle=sublabel2a,caption=caption2a)
 print(plot2a)
+
+
+
+
+#lives up to values
+strlist <- fread("Q:/Departments/WMO/Marketing Research/New Q drive/Partner Insights/Project Mood Ring/Email Mood Ring Solution 2017/Data & Reporting/Pulse_All_Responses_w_Matched_Shift.csv")
+strlist <- strlist[SHIFT_FSCL_WK_BEG_DT=='2018-02-12 00:00:00']
+# write.csv(strlist,file="Q:/Departments/WMO/Marketing Research/New Q drive/Partner Insights/Project Mood Ring/Email Mood Ring Solution 2017/Data & Reporting/Pulse_All_Responses_w_Matched_Shift_FW20.csv")
+strlist2 <- strlist[QUESTION_ID=='Q2_FA']
+strlist2[QUESTION_ID=='Q2_FA'&RESP_ID==1, useploy := 1]; strlist2[QUESTION_ID=='Q2_FA'&(RESP_ID==2|RESP_ID==3), useploy := 0]
+strlist2 <-strlist2[, .(PRTNR_ID,useploy)]
+
+strlist1 <- strlist[QUESTION_ID=='Q1']
+strlist1[QUESTION_ID=="Q1"&RESP_ID==7, valtb := 1]; strlist1[QUESTION_ID=="Q1"&RESP_ID<7, valtb := 0]
+strlist1[QUESTION_ID=="Q1", valresp := 1]
+strlist1 <-strlist1[, .(PRTNR_ID,valtb,valresp)]
+
+strlistm <- merge(strlist1,strlist2,by="PRTNR_ID")
+
+
+# strlist[STORE_NUM_WORKED %in% strlist[QUESTION_ID=='Q2_FA'&useploy==1,STORE_NUM_WORKED], useploy2 := 1]
+# strlist[STORE_NUM_WORKED %in% strlist[QUESTION_ID=='Q2_FA'&useploy==0,STORE_NUM_WORKED], useploy2 := 0]
+strlistm <- na.omit(strlistm,cols="useploy")
+strlistm[, valscore := valtb/valresp]
+t.test(strlistm[useploy==0,valscore],strlistm[useploy==1,valscore])
+temp <- strlistm[, list(valscore = sum(valtb,na.rm=T)/sum(valresp,na.rm=T)),by="useploy"]
+

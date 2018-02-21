@@ -42,6 +42,8 @@ FROM APPDWH.AFT_CV_SRVY_RSPNS ce
       AND org.DIV_ORG_LVL_ID IN (3,6,106)  -- U.S. company stores only (including reserve bar), but excluding New Concepts and Roastery
 WHERE ce.RSPNS_ID <> '9'  -- rspns_id = 9 for unanswered questions
   AND ce.QSTN_ID NOT IN ('Q1','Q11') -- these questions are not in Customer Connection or Store Operations scores
+
+
 GROUP BY
     c.FSCL_PER_IN_YR_NUM
     ,c.FSCL_YR_NUM

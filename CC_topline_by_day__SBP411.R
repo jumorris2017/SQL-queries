@@ -256,4 +256,62 @@ summary(lm3)
 #compare the nested models
 anova(lm0,lm1,lm2,lm3,test="Chisq")
 
+# temp <- ccwkdt[,.(FSCL_WK_IN_YR_NUM,FSCL_YR_NUM,STORE_NUM,cc)]
+# temp <- temp[, list(cc = mean(cc,na.rm=T)), by=c("FSCL_WK_IN_YR_NUM","FSCL_YR_NUM")]
+# setorder(temp,FSCL_YR_NUM,FSCL_WK_IN_YR_NUM)
+# decompose(ts(temp, frequency=52))
+# acf(ts(temp, frequency=52))
 
+
+#calculate a correlogram of the in-sample forecast errors (lags 1-30)
+acf(lm3$residuals,lag.max=30)
+
+#test est whether there is significant evidence for non-zero correlations at lags 1-30
+Box.test(lm3$residuals, lag=30, type="Ljung-Box")
+
+#ensure forecast errors are normally distributed with mean zero and constant variance
+plot.ts(lm3$residuals)
+
+#check if the distribution of forecast errors is roughly centred on zero, and is more or less normally distributed
+#write function
+plotForecastErrors <- function(forecasterrors)
+{
+  # make a histogram of the forecast errors:
+  mybinsize <- IQR(forecasterrors)/4
+  mysd   <- sd(forecasterrors)
+  mymin  <- min(forecasterrors) - mysd*5
+  mymax  <- max(forecasterrors) + mysd*3
+  # generate normally distributed data with mean 0 and standard deviation mysd
+  mynorm <- rnorm(10000, mean=0, sd=mysd)
+  mymin2 <- min(mynorm)
+  mymax2 <- max(mynorm)
+  if (mymin2 < mymin) { mymin <- mymin2 }
+  if (mymax2 > mymax) { mymax <- mymax2 }
+  # make a grey histogram of the forecast errors, with the normally distributed data overlaid:
+  mybins <- seq(mymin, mymax, mybinsize)
+  hist(forecasterrors, col="grey", freq=FALSE, breaks=mybins)
+  # freq=FALSE ensures the area under the histogram = 1
+  # generate normally distributed data with mean 0 and standard deviation mysd
+  myhist <- hist(mynorm, plot=FALSE, breaks=mybins)
+  # plot the normal curve as a blue line on top of the histogram of forecast errors:
+  points(myhist$mids, myhist$density, type="l", col="blue", lwd=2)
+}
+#plot
+plotForecastErrors(lm3$residuals)
+
+
+# library("TTR")
+temp <- pcc[,.(ds,y)]
+temp <- setorder(temp,ds)
+temp <- as.matrix(temp[,.(y)])
+temptimeseries <- ts(temp, frequency=365, start=c(2015,244))
+plot.ts(temptimeseries)
+# temptimeseriesSMA365 <- SMA(temptimeseries,n=365)
+# plot.ts(temptimeseriesSMA365)
+temptimeseriescomponents <- decompose(temptimeseries)
+# temptimeseriescomponents$seasonal
+# temptimeseriesseasonallyadjusted <- temptimeseries - temptimeseriescomponents$seasonal
+plot(temptimeseriesseasonallyadjusted)
+m <- HoltWinters(temptimeseries, beta=FALSE, gamma=FALSE)
+temptimeseriesforecasts2 <- predict(m, n.ahead=21, prediction.interval=T)
+plot(m,temptimeseriesforecasts2)
