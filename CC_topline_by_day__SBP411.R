@@ -105,16 +105,94 @@ plot(temp.hp1$cycle,
      col=2, ylab="", ylim=range(temp.hp1$cycle,na.rm=TRUE))
 lines(temp.hp2$cycle,col=4)
 
+# ARIMA(p, d, q) × (P, D, Q)S,
+# with p = non-seasonal AR order, d = non-seasonal differencing, 
+# q = non-seasonal MA order, 
+# P = seasonal AR order, 
+# D = seasonal differencing, 
+# Q = seasonal MA order, and 
+# S = time span of repeating seasonal pattern.
+
 #library(tseries)
 #test for unit root
 temp <- pcc[,.(ds,y)]
 temp <- setorder(temp,ds)
 temp <- as.matrix(temp[,.(y)])
 tseries::adf.test(temp[,"y"],k=1)
+Acf(temp[,"y"])
 #library(forecast)
 fit <- auto.arima(temp[,"y"], start.p = 1, start.q = 1)
 res <- residuals(fit)
 Box.test(res) #box-pierce test
+
+#write function
+plotForecastErrors <- function(forecasterrors)
+{
+  # make a histogram of the forecast errors:
+  set.seed(98115)
+  mybinsize <- IQR(forecasterrors)/4
+  mysd   <- sd(forecasterrors)
+  mymin  <- min(forecasterrors) - mysd*5
+  mymax  <- max(forecasterrors) + mysd*3
+  # generate normally distributed data with mean 0 and standard deviation mysd
+  mynorm <- rnorm(10000, mean=0, sd=mysd)
+  mymin2 <- min(mynorm)
+  mymax2 <- max(mynorm)
+  if (mymin2 < mymin) { mymin <- mymin2 }
+  if (mymax2 > mymax) { mymax <- mymax2 }
+  # make a grey histogram of the forecast errors, with the normally distributed data overlaid:
+  mybins <- seq(mymin, mymax, mybinsize)
+  hist(forecasterrors, col="grey", freq=FALSE, breaks=mybins,main="distribution of residuals")
+  # freq=FALSE ensures the area under the histogram = 1
+  # generate normally distributed data with mean 0 and standard deviation mysd
+  myhist <- hist(mynorm, plot=FALSE, breaks=mybins)
+  # plot the normal curve as a blue line on top of the histogram of forecast errors:
+  points(myhist$mids, myhist$density, type="l", col="blue", lwd=2)
+}
+
+#TBATS allows for dynamic seasonality (versus ARIMA where seasonality is periodic)
+# TBATS(omega, p,q, phi, <m1,k1>,...,<mJ,kJ>) where 
+# omega is the Box-Cox parameter and phi is the damping parameter; 
+# the error is modelled as an ARMA(p,q) process 
+# and m1,...,mJ list the seasonal periods used in the model 
+# and k1,...,kJ are the corresponding number of Fourier terms used for each seasonality.
+#TBATS(1,{3,3},-,{<7,3>,<364,7>})
+#https://robjhyndman.com/hyndsight/tbats-with-regressors/
+#https://robjhyndman.com/hyndsight/dailydata/
+##TO DO: ADD HOLIDAY EFFECTS
+#library(forecast)
+#TBATS
+#day of week trends
+x_new  <- msts(temp[,"y"], seasonal.periods=c(7,7*52))
+fit <- tbats(x_new)
+fc <- forecast(fit, h=7*52)
+predvalues <- fc$mean[1:7]
+plot(forecast(fit,h=7))
+
+#plot distribution of residuals
+plotForecastErrors(fc$residuals)
+#ensure forecast errors are normally distributed with mean zero and constant variance
+plot.ts(fc$residuals,main="LM Residuals by Day")
+
+#double-seasonal HW with exponential smoothing
+HWx_new_sea <- dshw(temp[,"y"], period1=7, period2=7*52, h=25)
+HWx_new_exps <- dshw(temp[,"y"], period1=7, period2=7*52, h=25, beta=FALSE, gamma=FALSE)
+plot(HWx_new_sea,main="Double-Seasonal Holt-Winters w/ exponential smoothing of MSTS time series")
+plot(HWx_new_exps,main="Double-Seasonal Holt-Winters w/ exponential smoothing of MSTS time series")
+
+#MSE
+HWx_new_sea$model$mse
+HWx_new_exps$model$mse
+
+#plot distribution of residuals
+plotForecastErrors(HWx_new_sea$residuals)
+plotForecastErrors(HWx_new_exps$residuals)
+#ensure forecast errors are normally distributed with mean zero and constant variance
+plot.ts(HWx_new_sea$residuals,main="DS HW Seasonal Residuals by Day")
+plot.ts(HWx_new_exps$residuals,main="DS HW Exp Smoothing Residuals by Day")
+
+
+
 
 #qq plot
 temp <- pcc[,.(ds,y)]
@@ -140,6 +218,7 @@ predvalues <- fc$mean[1:25]
 plot(forecast(fit,h=25))
 #residuals and box test
 Acf(residuals(fit))
+Pacf(residuals(fit))
 Box.test(residuals(fit), type="Ljung")
 
 #merge together
@@ -207,7 +286,7 @@ predvactual[, list(ccscore = round(mean(ccscore),4)*100,
 
 
 #predictive modeling
-ccwk <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_predmodel_ccscores.csv") #home store customers
+ccwk <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_predmodel_ccscores.csv") #cc scores
 hswk <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_predmodel_homestore.csv") #home store customers
 ptwk <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_predmodel_partnertenure.csv") #partner tenure
 tsdwk <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc_predmodel_tsd.csv") #TSDs
@@ -231,6 +310,7 @@ setorder(ccwkdt,FSCL_YR_NUM,FSCL_WK_IN_YR_NUM)
 ccwkdt <- ccwkdt[FSCL_WK_IN_YR_NUM<53]
 #create a lag for cc
 ccwkdt[, lag_cc_lw := lapply(.SD, function(x) c(NA, x[-.N])), by="STORE_NUM", .SDcols="cc"]
+ccwkdt[, lag_cc_lw2 := lapply(.SD, function(x) c(NA, x[-.N])), by="STORE_NUM", .SDcols="lag_cc_lw"]
 ccwkdt[, lag_cc_ly := lapply(.SD, function(x) c(NA, x[-.N])), by=c("STORE_NUM","FSCL_WK_IN_YR_NUM"), .SDcols="cc"]
 
 # #make time-series indicator from years and weeks
@@ -253,8 +333,14 @@ lm2 <- lm(cc ~ hs + pt + tsd + lag_cc_lw, data = ccwkdt[FSCL_YR_NUM==2018])
 summary(lm2)
 lm3 <- lm(cc ~ hs + pt + tsd + lag_cc_lw + lag_cc_ly, data = ccwkdt[FSCL_YR_NUM==2018])
 summary(lm3)
+lm4 <- lm(cc ~ lag_cc_lw + lag_cc_lw2 + lag_cc_ly, data = ccwkdt[FSCL_YR_NUM==2018])
+summary(lm4)
+lm5 <- lm(cc ~ hs + pt + tsd + lag_cc_lw + lag_cc_lw2, data = ccwkdt[FSCL_YR_NUM==2018])
+summary(lm5)
+lm6 <- lm(cc ~ hs + pt + tsd + lag_cc_lw + lag_cc_lw2 + lag_cc_ly, data = ccwkdt[FSCL_YR_NUM==2018])
+summary(lm6)
 #compare the nested models
-anova(lm0,lm1,lm2,lm3,test="Chisq")
+anova(lm0,lm1,lm2,lm3,lm4,lm5,lm6,test="Chisq")
 
 # temp <- ccwkdt[,.(FSCL_WK_IN_YR_NUM,FSCL_YR_NUM,STORE_NUM,cc)]
 # temp <- temp[, list(cc = mean(cc,na.rm=T)), by=c("FSCL_WK_IN_YR_NUM","FSCL_YR_NUM")]
@@ -262,15 +348,19 @@ anova(lm0,lm1,lm2,lm3,test="Chisq")
 # decompose(ts(temp, frequency=52))
 # acf(ts(temp, frequency=52))
 
+#AIC value
+AIC(lm3)
+#log-likelihood
+logLik(lm3)
 
 #calculate a correlogram of the in-sample forecast errors (lags 1-30)
 acf(lm3$residuals,lag.max=30)
 
-#test est whether there is significant evidence for non-zero correlations at lags 1-30
+#test whether there is significant evidence for non-zero correlations at lags 1-30
 Box.test(lm3$residuals, lag=30, type="Ljung-Box")
 
 #ensure forecast errors are normally distributed with mean zero and constant variance
-plot.ts(lm3$residuals)
+plot.ts(lm3$residuals,main="LM Residuals by Day")
 
 #check if the distribution of forecast errors is roughly centred on zero, and is more or less normally distributed
 #write function
@@ -289,7 +379,7 @@ plotForecastErrors <- function(forecasterrors)
   if (mymax2 > mymax) { mymax <- mymax2 }
   # make a grey histogram of the forecast errors, with the normally distributed data overlaid:
   mybins <- seq(mymin, mymax, mybinsize)
-  hist(forecasterrors, col="grey", freq=FALSE, breaks=mybins)
+  hist(forecasterrors, col="grey", freq=FALSE, breaks=mybins,main="distribution of Forecast Errors")
   # freq=FALSE ensures the area under the histogram = 1
   # generate normally distributed data with mean 0 and standard deviation mysd
   myhist <- hist(mynorm, plot=FALSE, breaks=mybins)
@@ -299,7 +389,6 @@ plotForecastErrors <- function(forecasterrors)
 #plot
 plotForecastErrors(lm3$residuals)
 
-
 # library("TTR")
 temp <- pcc[,.(ds,y)]
 temp <- setorder(temp,ds)
@@ -308,10 +397,21 @@ temptimeseries <- ts(temp, frequency=365, start=c(2015,244))
 plot.ts(temptimeseries)
 # temptimeseriesSMA365 <- SMA(temptimeseries,n=365)
 # plot.ts(temptimeseriesSMA365)
-temptimeseriescomponents <- decompose(temptimeseries)
+# temptimeseriescomponents <- decompose(temptimeseries)
 # temptimeseriescomponents$seasonal
-# temptimeseriesseasonallyadjusted <- temptimeseries - temptimeseriescomponents$seasonal
-plot(temptimeseriesseasonallyadjusted)
-m <- HoltWinters(temptimeseries, beta=FALSE, gamma=FALSE)
-temptimeseriesforecasts2 <- predict(m, n.ahead=21, prediction.interval=T)
-plot(m,temptimeseriesforecasts2)
+# temptimeseriesseasonallyadjusted <- tempti
+# meseries - temptimeseriescomponents$seasonal
+# plot(temptimeseriesseasonallyadjusted)
+
+#HW, seasonal
+hw1 <- HoltWinters(temptimeseries)
+hw1fcast <- predict(m, n.ahead=21, prediction.interval=T)
+plot(hw1,hw1fcast,main="HoltWinters Seasonal")
+#HW, non-seasonal
+hw2 <- HoltWinters(temptimeseries, gamma=FALSE)
+hw2fcast <- predict(m, n.ahead=21, prediction.interval=T)
+plot(hw2,hw2fcast,main="HoltWinters Non-Seasonal")
+#HW with exponential smoothing
+hw3 <- HoltWinters(temptimeseries, beta=FALSE, gamma=FALSE)
+hw3fcast <- predict(m, n.ahead=21, prediction.interval=T)
+plot(hw3,hw3fcast,main="HoltWinters w/ exponential smoothing")
