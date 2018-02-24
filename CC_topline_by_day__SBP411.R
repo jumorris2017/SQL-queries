@@ -165,19 +165,31 @@ plotForecastErrors <- function(forecasterrors)
 #day of week trends
 x_new  <- msts(temp[,"y"], seasonal.periods=c(7,7*52))
 fit <- tbats(x_new)
-fc <- forecast(fit, h=7*52)
-predvalues <- fc$mean[1:7]
-plot(forecast(fit,h=7))
+fc <- forecast(fit, h=25)
+predvalues <- fc$mean[1:25]
+plot(forecast(fit,h=25))
+#diagnosis...
+fit$likelihood #fc$model$likelhood
+fit$AIC
+length(fit$parameters$vect)
+
+# #building a models with fourier terms for seasonality
+# y <- ts(temp[,"y"], frequency=7)
+# z <- fourier(ts(temp[,"y"], frequency=365.25), K=5)
+# zf <- fourier(ts(temp[,"y"], frequency=365.25), K=5, h=25)
+# fit <- auto.arima(y, xreg=z, seasonal=FALSE)
+# fc <- forecast(fit, xreg=zf, h=25)
+# summary(fc)
 
 #plot distribution of residuals
 plotForecastErrors(fc$residuals)
 #ensure forecast errors are normally distributed with mean zero and constant variance
-plot.ts(fc$residuals,main="LM Residuals by Day")
+plot.ts(fc$residuals,main="MSTS/TBATS Residuals by Day")
 
 #double-seasonal HW with exponential smoothing
 HWx_new_sea <- dshw(temp[,"y"], period1=7, period2=7*52, h=25)
 HWx_new_exps <- dshw(temp[,"y"], period1=7, period2=7*52, h=25, beta=FALSE, gamma=FALSE)
-plot(HWx_new_sea,main="Double-Seasonal Holt-Winters w/ exponential smoothing of MSTS time series")
+plot(HWx_new_sea,main="Double-Seasonal Holt-Winters of seasonal MSTS time series")
 plot(HWx_new_exps,main="Double-Seasonal Holt-Winters w/ exponential smoothing of MSTS time series")
 
 #MSE
@@ -190,6 +202,7 @@ plotForecastErrors(HWx_new_exps$residuals)
 #ensure forecast errors are normally distributed with mean zero and constant variance
 plot.ts(HWx_new_sea$residuals,main="DS HW Seasonal Residuals by Day")
 plot.ts(HWx_new_exps$residuals,main="DS HW Exp Smoothing Residuals by Day")
+
 
 
 
