@@ -46,7 +46,7 @@ GROUP BY
 ON a.GUID_ID = sq.GUID_USER_ID
 
 where c.SVC_INTRNL_RQST_NM = 'Redemption' 
-  AND (b.FSCL_YR_NUM = 2017 and (b.FSCL_PER_IN_YR_NUM >= 6 AND b.FSCL_PER_IN_YR_NUM <= 10))
+  AND (b.FSCL_YR_NUM = 2017 and (b.FSCL_PER_IN_YR_NUM >= 7 AND b.FSCL_PER_IN_YR_NUM <= 10))
 group by b.FSCL_YR_NUM
   ,b.FSCL_PER_IN_YR_NUM
   ,a.GUID_ID

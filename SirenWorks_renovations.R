@@ -7,14 +7,29 @@
 library(data.table)
 library(ggplot2)
 library(tidyverse)
+library(lubridate)
 
 #group by stores that *are* or *are not* using the new plays
 
 #load data
-dp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/CE_deploymentplays.csv")
-strlist <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/APT_Test_and_Control_site_mapping.csv")
+#ce data from survox
+swce <- fread("Q:/Departments/WMO/Marketing Research/New Q drive/Foundational/Customer Voice/2.0/Ad Hoc Q/2018_2_20_Siren Works Renovations/ce101_2017.csv")
+swce[, dateymd := ymd(date1)]
+swce[, datemonth := month(dateymd)]
+swce[adhoc==1, testcase := 1];swce[adhoc==2, testcase := 0]
 
-#group by test/control stores for renovations
-###this is fake for setting up code
-dp[STORE_NUM %in% strlist[,stores_test], controlstr := 0]; dp[STORE_NUM %in% strlist[,stores_control], controlstr := 1]
-dp <- na.omit(dp,cols="controlstr")
+#reduce number of variables
+swce <- swce[, c("guid","dateymd","datemonth","testcase","q1",grep("q2",colnames(swce),value=T)),with=FALSE]
+
+#pull in cust trans data
+ctrans <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/CE_SirenWorks_custtrans.csv")
+setnames(ctrans,c("GUID_ID"),c("guid"))
+ctrans[, datemonth := FSCL_PER_IN_YR_NUM-3]
+
+#swing wide by month
+ctrans <- dcast.data.table(ctrans, guid ~ datemonth, value.var="TRANS")
+colnames(ctrans)[2:5] <- paste("transmnth", colnames(ctrans)[2:5], sep = "_")
+
+#merge
+temp <- merge(swce,ctrans,by="guid")
+
