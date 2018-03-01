@@ -1,0 +1,7 @@
+/* Store version attributes for linking to other data */
+
+SELECT STORE_NUM, STORE_BRAND_CD, OWNR_TYPE_CD, CNTRY_CD_2_DGT_ISO, DRIVE_THRU_IND
+FROM APPCA.D_STORE_VERS 
+    WHERE CURRENT_FLG = 'Y'
+    AND CNTRY_CD_2_DGT_ISO IN ('US','CA')
+    --AND OWNR_TYPE_CD = 'CO'
