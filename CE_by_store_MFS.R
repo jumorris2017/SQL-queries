@@ -8,22 +8,147 @@
 library(data.table)
 library(ggplot2)
 library(lubridate)
+library(xlsx)
 
 #load data
 #stores and converstion dates
 mfsst <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/MFS_Roster_2_12_2018.csv")
 #ce scores
 mfsce <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/CE_by_store_MFS_2014-2018.csv")
+usce <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/CE_by_store_US_2014-2018.csv")
 #pulse scores
+mfspulse <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/Pulse_by_store_MFS_2017-2018.csv")
+uspulse <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/Pulse_by_store_US_2017-2018.csv")
 
 #create 4-month pre- and post- bands
+#stores
 mfsst[, CONVDATE := mdy(CONVDATE)]
-# mfsst[, convmonth := month(CONVDATE)]
-# mfsst[, convyear := year(CONVDATE)]
 mfsst[, convpre := CONVDATE %m-% months(4)]
 mfsst[, convpost := CONVDATE %m+% months(4)]
+mfsst[, convprefull := paste0(year(convpre),".",str_pad(month(convpre), 2, pad = "0"))]
+mfsst[, CONVDATEfull := paste0(year(CONVDATE),".",str_pad(month(CONVDATE), 2, pad = "0"))]
+mfsst[, convpostfull := paste0(year(convpost),".",str_pad(month(convpost), 2, pad = "0"))]
+mfsst[, c("CONVDATE","convpre","convpost") := NULL]
 
+#paste months and years together to get get CE survey dates
+#CE scores
+mfsce[, surveydatefull := paste0(CAL_YR_NUM,".",str_pad(CAL_MNTH_IN_YR_NUM, 2, pad = "0"))]
+# usce[, surveydatefull := paste0(CAL_YR_NUM,".",str_pad(CAL_MNTH_IN_YR_NUM, 2, pad = "0"))]
+#Pulse scores
+mfspulse[, surveydatefull := paste0(CAL_YR_NUM,".",str_pad(CAL_MNTH_IN_YR_NUM, 2, pad = "0"))]
+# uspulse[, surveydatefull := paste0(CAL_YR_NUM,".",str_pad(CAL_MNTH_IN_YR_NUM, 2, pad = "0"))]
+#rename us scores
+colnames(usce)[3:ncol(usce)] <- paste0("US",colnames(usce)[3:ncol(usce)])
+colnames(uspulse)[1:3] <- paste0("US",colnames(uspulse)[1:3])
+#left join to pull in US ce scores, and tie to each msf store
+mfsce <- left_join(mfsce,usce,by=c("CAL_YR_NUM","CAL_MNTH_IN_YR_NUM"))
+setDT(mfsce)
+mfspulse <- left_join(mfspulse,uspulse,by=c("CAL_YR_NUM","CAL_MNTH_IN_YR_NUM"))
+setDT(mfspulse)
+
+##CUSTOMER EXPERIENCE
+
+#merge store numbers into ce data
+temp <- left_join(mfsce,mfsst,by="STORE_NUM")
+setDT(temp)
 
 #agg CE scores for pre- and post- periods
+temp[(convprefull<=surveydatefull)&(surveydatefull<=convpostfull), withinrange_full := 1]
+temp[(convprefull<=surveydatefull)&(surveydatefull<CONVDATEfull), withinrange_pre := 1]
+temp[(CONVDATEfull<=surveydatefull)&(surveydatefull<=convpostfull), withinrange_post := 1]
+
+#drop rows not in full range
+temp <- temp[withinrange_full==1]
+#agg responses by pre-and post-period
+temp <- temp[, lapply(.SD,sum,na.rm=T), .SDcols=c(grep("Q",colnames(temp),value=T)),
+     by=c("withinrange_pre","withinrange_post")]
+#calculate TB scores - MFS stores
+temp[, cc_MFS_score := Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL]
+temp[, q2_1_MFS_scr := Q2_1_TB_CNT/Q2_1_RESPONSE_TOTAL]
+temp[, q2_3_MFS_scr := Q2_3_TB_CNT/Q2_3_RESPONSE_TOTAL]
+temp[, q2_4_MFS_scr := Q2_4_TB_CNT/Q2_4_RESPONSE_TOTAL]
+temp[, q2_5_MFS_scr := Q2_5_TB_CNT/Q2_5_RESPONSE_TOTAL]
+temp[, q2_6_MFS_scr := Q2_6_TB_CNT/Q2_6_RESPONSE_TOTAL]
+temp[, q2_7_MFS_scr := Q2_7_TB_CNT/Q2_7_RESPONSE_TOTAL]
+temp[, so_MFS_score := rowMeans(subset(temp, select = c(grep("_MFS_scr",colnames(temp),value=T))), na.rm = TRUE)]
+#calculate TB scores - US scores
+temp[, cc_US_score := USQ2_2_TB_CNT/USQ2_2_RESPONSE_TOTAL]
+temp[, q2_1_US_scr := USQ2_1_TB_CNT/USQ2_1_RESPONSE_TOTAL]
+temp[, q2_3_US_scr := USQ2_3_TB_CNT/USQ2_3_RESPONSE_TOTAL]
+temp[, q2_4_US_scr := USQ2_4_TB_CNT/USQ2_4_RESPONSE_TOTAL]
+temp[, q2_5_US_scr := USQ2_5_TB_CNT/USQ2_5_RESPONSE_TOTAL]
+temp[, q2_6_US_scr := USQ2_6_TB_CNT/USQ2_6_RESPONSE_TOTAL]
+temp[, q2_7_US_scr := USQ2_7_TB_CNT/USQ2_7_RESPONSE_TOTAL]
+temp[, so_US_score := rowMeans(subset(temp, select = c(grep("_US_scr",colnames(temp),value=T))), na.rm = TRUE)]
+
+#rename pre- and post- variable
+temp[withinrange_pre==1, post_period := 0];temp[withinrange_post==1, post_period := 1]
+
+#subset variables
+temp <- temp[, .(post_period,cc_MFS_score,so_MFS_score,cc_US_score,so_US_score)]
+temp <- temp[, lapply(.SD,function(x) round(x,4)*100), by="post_period",
+     .SDcols=grep("score",colnames(temp),value=T)]
+temp[, cc_MFStoUS_delta := cc_MFS_score-cc_US_score]
+temp[, so_MFStoUS_delta := so_MFS_score-so_US_score]
+tempdelta <- temp[post_period==1] - temp[post_period==0]
+tempdelta[, post_period := "delta"]
+temp <- rbind(temp,tempdelta)
+#write to .csv
+write.xlsx(temp,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/MFS_CE_pre-post.xlsx")
+
+
+###PULSE
+##TB & AVG
+
+#merge store numbers into pulse data
+temp <- left_join(mfspulse,mfsst,by="STORE_NUM")
+setDT(temp)
+
+#agg CE scores for pre- and post- periods
+temp[(convprefull<=surveydatefull)&(surveydatefull<=convpostfull), withinrange_full := 1]
+temp[(convprefull<=surveydatefull)&(surveydatefull<CONVDATEfull), withinrange_pre := 1]
+temp[(CONVDATEfull<=surveydatefull)&(surveydatefull<=convpostfull), withinrange_post := 1]
+
+#drop rows not in full range
+temp <- temp[withinrange_full==1]
+
+#back out of averages to get sum, so can re-agg average
+temp[, Q1_SUM := Q1_RESP*Q1_AVG]
+temp[, USQ1_SUM := USQ1_RESP*USQ1_AVG]
+
+#agg responses by pre-and post-period
+temp <- temp[, lapply(.SD,sum,na.rm=T), .SDcols=c(grep("Q",colnames(temp),value=T)),
+             by=c("withinrange_pre","withinrange_post")]
+#calculate TB scores - MFS stores
+temp[, q1_MFS_score := Q1_TB/Q1_RESP]
+#calculate TB scores - US scores
+temp[, q1_US_score := USQ1_TB/USQ1_RESP]
+#calculate average scores - MFS stores
+temp[, q1_MFS_avg := Q1_SUM/Q1_RESP]
+#calculate average scores - US scores
+temp[, q1_US_avg := USQ1_SUM/USQ1_RESP]
+
+#rename pre- and post- variable
+temp[withinrange_pre==1, post_period := 0];temp[withinrange_post==1, post_period := 1]
+
+#subset variables
+temp <- temp[, .(post_period,q1_MFS_score,q1_US_score,q1_MFS_avg,q1_US_avg)]
+temp[, c("q1_MFS_score","q1_US_score") := lapply(.SD,function(x) round(x,4)*100), .SDcols=c("q1_MFS_score","q1_US_score")]
+temp[, c("q1_MFS_avg","q1_US_avg") := lapply(.SD,function(x) round(x,2)), .SDcols=c("q1_MFS_avg","q1_US_avg")]
+temp[, q1_MFStoUS_delta_TB := q1_MFS_score-q1_US_score]
+temp[, q1_MFStoUS_delta_avg := q1_MFS_avg-q1_US_avg]
+tempdelta <- temp[post_period==1] - temp[post_period==0]
+tempdelta[, post_period := "delta"]
+temp <- rbind(temp,tempdelta)
+#write to .csv
+write.xlsx(temp,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/MFS_Pulse_pre-post.xlsx")
+
+
+
+
+
+
+
+
 
 
