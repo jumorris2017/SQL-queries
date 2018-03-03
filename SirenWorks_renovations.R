@@ -133,31 +133,31 @@ swce <- merge(swce,sta,by="stid")
 #subset to US CO stores - AM
 swce_usco_AM <- swce[OWNR_TYPE_CD=="CO"&CNTRY_CD_2_DGT_ISO=="US"&daypart==2]
 
-#2-N by store -- US COMPANY-OPERATED
-temp_usco_AM <- swce_usco_AM[, list(nguid = length(unique(guid))), by="stid"]
-
-#N stores
-length(unique(temp_usco_AM[,stid]))
-#N and Average surveys
-sum(temp_usco_AM[,nguid])
-mean(temp_usco_AM[,nguid])
-#N 50+ and 70+
-length(unique(temp_usco_AM[nguid>=50,stid]))
-length(unique(temp_usco_AM[nguid>=70,stid]))
-
-#set labels
-xlabel <- "Number of Surveys"
-ylabel <- "Number of Stores"
-tlabel <- "CE survey count per store: AM (7-11am)"
-sublabel <- "SirenWorks ad hoc questions"
-caption <- "US Company-Operated\nStore N = 8,031\nSurvey N = 243,288"
-#plot itself
-plot2 <- ggplot(temp_usco_AM,aes(nguid)) + 
-  geom_histogram(binwidth=1,show.legend=FALSE,fill="lightgrey",col=I("black")) + 
-  theme_economist() + scale_colour_brewer(palette = 1, name="", labels="") +
-  scale_x_continuous(limits=c(0,max(temp_usco_AM[,nguid])), breaks = scales::pretty_breaks(20)) +
-  xlab(xlabel) + ylab(ylabel) + ggtitle(tlabel) + labs(subtitle=sublabel,caption=caption)
-print(plot2)
+# #2-N by store -- US COMPANY-OPERATED
+# temp_usco_AM <- swce_usco_AM[, list(nguid = length(unique(guid))), by="stid"]
+# 
+# #N stores
+# length(unique(temp_usco_AM[,stid]))
+# #N and Average surveys
+# sum(temp_usco_AM[,nguid])
+# mean(temp_usco_AM[,nguid])
+# #N 50+ and 70+
+# length(unique(temp_usco_AM[nguid>=50,stid]))
+# length(unique(temp_usco_AM[nguid>=70,stid]))
+# 
+# #set labels
+# xlabel <- "Number of Surveys"
+# ylabel <- "Number of Stores"
+# tlabel <- "CE survey count per store: AM (7-11am)"
+# sublabel <- "SirenWorks ad hoc questions"
+# caption <- "US Company-Operated\nStore N = 8,031\nSurvey N = 243,288"
+# #plot itself
+# plot2 <- ggplot(temp_usco_AM,aes(nguid)) + 
+#   geom_histogram(binwidth=1,show.legend=FALSE,fill="lightgrey",col=I("black")) + 
+#   theme_economist() + scale_colour_brewer(palette = 1, name="", labels="") +
+#   scale_x_continuous(limits=c(0,max(temp_usco_AM[,nguid])), breaks = scales::pretty_breaks(20)) +
+#   xlab(xlabel) + ylab(ylabel) + ggtitle(tlabel) + labs(subtitle=sublabel,caption=caption)
+# print(plot2)
 
 ###correlation matrices
 #set up functions
@@ -179,34 +179,78 @@ summary(lm(q2_8 ~ q22_1 + q22_2 + q22_3, data=swce_usco_AM))
 
 
 
-#subset to US CO stores - PM
-swce_usco_PM <- swce[OWNR_TYPE_CD=="CO"&CNTRY_CD_2_DGT_ISO=="US"&daypart==4]
+
+
+
+#aggregate by day part
+swce_usco_dp <- swce[OWNR_TYPE_CD=="CO"&CNTRY_CD_2_DGT_ISO=="US"]
+swce_usco_dp[q22_1==7, q22_1_tb := 1];swce_usco_dp[q22_1<7, q22_1_tb := 0]
 
 #2-N by store -- US COMPANY-OPERATED
-temp_usco_PM <- swce_usco_PM[, list(nguid = length(unique(guid))), by="stid"]
+swce_usco_dp <- swce_usco_dp[, list(q22_1_tb = sum(q22_1_tb,na.rm=T),
+                                    q22_1_resp = .N),
+                             by="daypart"]
+#calc tb
+swce_usco_dp[, q22_1_score := round(q22_1_tb/q22_1_resp,4)*100]
 
-#N stores
-length(unique(temp_usco_PM[,stid]))
-#N and Average surveys
-sum(temp_usco_PM[,nguid])
-mean(temp_usco_PM[,nguid])
-#N 50+ and 70+
-length(unique(temp_usco_PM[nguid>=50,stid]))
-length(unique(temp_usco_PM[nguid>=70,stid]))
+
+
+
+# #set labels
+# xlabel <- "SR Customers"
+# xlabels <- c("Speed","CC","Above & Beyond","Order Accuracy","Bev Taste","Food Taste","Cleanliness","Worth")
+# ylabel <- "Top Box Score"
+# tlabel <- "Customer Experience Survey"
+# sublabel <- "Customer Experience"
+# caption <- "Customer Experience Survey, December FY18"
+# #manual legend labels
+# lname <- "30-Day Visitation"
+# llabels <- c("1-5", "6-10", "11-15", "16+")
+
 
 #set labels
-xlabel <- "Number of Surveys"
-ylabel <- "Number of Stores"
-tlabel <- "CE survey count per store: PM (2-5pm)"
+tlabel <- "Q22_1 by Daypart"
 sublabel <- "SirenWorks ad hoc questions"
-caption <- "US Company-Operated\nStore N = 8,032\nSurvey N = 124,523"
+caption <- "US Company Operated Stores"
+#labels
+xlabels <- c("Early AM","AM","Midday","PM","Late PM")
+ylabel <- "Top Box Score"
+xlabel <- "Day Part"
+#values
+pdata3 <- swce_usco_dp
+px3 <- swce_usco_dp[,daypart]
+py3 <- swce_usco_dp[,q22_1_score]
 #plot itself
-plot2 <- ggplot(temp_usco_PM,aes(nguid)) + 
-  geom_histogram(binwidth=1,show.legend=FALSE,fill="lightgrey",col=I("black")) + 
-  theme_economist() + scale_colour_brewer(palette = 1, name="", labels="") +
-  scale_x_continuous(limits=c(0,max(temp_usco_PM[,nguid])), breaks = scales::pretty_breaks(20)) +
-  xlab(xlabel) + ylab(ylabel) + ggtitle(tlabel) + labs(subtitle=sublabel,caption=caption)
-print(plot2)
+plot3 <- ggplot(data=pdata3,aes(y=py3,x=as.factor(px3))) + 
+  geom_bar(stat="identity", width = 0.7, position=position_dodge(), fill="lightblue", colour="black") +
+  scale_fill_brewer(palette = 2, guide=FALSE) + theme_economist() +
+  scale_x_discrete(name=xlabel,labels=xlabels) +
+  xlab("") + ylab(ylabel) + ggtitle(tlabel) + labs(subtitle=sublabel,caption=caption) +
+  geom_text(size = 3.5, aes(label=py3,y=2), stat="identity")
+print(plot3)
+
+# #N stores
+# length(unique(temp_usco_PM[,stid]))
+# #N and Average surveys
+# sum(temp_usco_PM[,nguid])
+# mean(temp_usco_PM[,nguid])
+# #N 50+ and 70+
+# length(unique(temp_usco_PM[nguid>=50,stid]))
+# length(unique(temp_usco_PM[nguid>=70,stid]))
+# 
+# #set labels
+# xlabel <- "Number of Surveys"
+# ylabel <- "Number of Stores"
+# tlabel <- "CE survey count per store: PM (2-5pm)"
+# sublabel <- "SirenWorks ad hoc questions"
+# caption <- "US Company-Operated\nStore N = 8,032\nSurvey N = 124,523"
+# #plot itself
+# plot2 <- ggplot(temp_usco_PM,aes(nguid)) + 
+#   geom_histogram(binwidth=1,show.legend=FALSE,fill="lightgrey",col=I("black")) + 
+#   theme_economist() + scale_colour_brewer(palette = 1, name="", labels="") +
+#   scale_x_continuous(limits=c(0,max(temp_usco_PM[,nguid])), breaks = scales::pretty_breaks(20)) +
+#   xlab(xlabel) + ylab(ylabel) + ggtitle(tlabel) + labs(subtitle=sublabel,caption=caption)
+# print(plot2)
 
 ###correlation matrices
 #set up functions

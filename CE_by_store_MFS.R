@@ -84,6 +84,10 @@ temp[, so_US_score := rowMeans(subset(temp, select = c(grep("_US_scr",colnames(t
 #rename pre- and post- variable
 temp[withinrange_pre==1, post_period := 0];temp[withinrange_post==1, post_period := 1]
 
+# #t.tests (re-run and omit agg code)
+# t.test(temp[post_period==0,cc_MFS_score],temp[post_period==1,cc_MFS_score])
+# t.test(temp[post_period==0,so_MFS_score],temp[post_period==1,so_MFS_score])
+
 #subset variables
 temp <- temp[, .(post_period,cc_MFS_score,so_MFS_score,cc_US_score,so_US_score)]
 temp <- temp[, lapply(.SD,function(x) round(x,4)*100), by="post_period",
@@ -131,6 +135,9 @@ temp[, q1_US_avg := USQ1_SUM/USQ1_RESP]
 #rename pre- and post- variable
 temp[withinrange_pre==1, post_period := 0];temp[withinrange_post==1, post_period := 1]
 
+# #t.tests (re-run and omit agg code)
+# t.test(temp[post_period==0,q1_MFS_avg],temp[post_period==1,q1_MFS_avg])
+
 #subset variables
 temp <- temp[, .(post_period,q1_MFS_score,q1_US_score,q1_MFS_avg,q1_US_avg)]
 temp[, c("q1_MFS_score","q1_US_score") := lapply(.SD,function(x) round(x,4)*100), .SDcols=c("q1_MFS_score","q1_US_score")]
@@ -145,10 +152,99 @@ write.xlsx(temp,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/MFS_Pulse_pre-post.xl
 
 
 
+#turnover
+
+#load data (from Megan)
+hc <- fread("O:/CoOp/CoOp194_PROReportng&OM/Megan/StoreRisk/EverythingEverJan.csv")
+setnames(hc,"StoreNum","STORE_NUM")
+hc[, terms := rowSums(.SD,na.rm=T), .SDcols=c("barista.term","shift.term","sm.term")]
+
+#reduce variables
+hc <- hc[, .(STORE_NUM,FP,FY,TotHC,terms)]
+
+#paste months and years together to get get CE survey dates
+#headcount
+hc[, surveydatefull := paste0(FY,".",str_pad(FP, 2, pad = "0"))]
+
+#restrict to MFS stores
+mfshc <- hc[STORE_NUM %in% mfsst[,STORE_NUM]]
+
+##total us term rate
+ushc <- hc[, .(TotHC,terms,surveydatefull)]
+ushc <- ushc[, lapply(.SD,sum,na.rm=T), .SDcols=c("TotHC","terms"),
+             by=c("surveydatefull")]
+colnames(ushc)[2:ncol(ushc)] <- paste0("US",colnames(ushc)[2:ncol(ushc)])
+
+#left join to pull in US ce scores, and tie to each msf store
+mfshc <- left_join(mfshc,ushc,by=c("surveydatefull"))
+setDT(mfshc)
+
+#merge store numbers into hc data
+temp <- left_join(mfshc,mfsst,by="STORE_NUM")
+setDT(temp)
+
+#agg CE scores for pre- and post- periods
+temp[(convprefull<=surveydatefull)&(surveydatefull<=convpostfull), withinrange_full := 1]
+temp[(convprefull<=surveydatefull)&(surveydatefull<CONVDATEfull), withinrange_pre := 1]
+temp[(CONVDATEfull<=surveydatefull)&(surveydatefull<=convpostfull), withinrange_post := 1]
+
+#drop rows not in full range
+temp <- temp[withinrange_full==1]
+
+#agg responses by pre-and post-period
+temp <- temp[, lapply(.SD,sum,na.rm=T), .SDcols=c("TotHC","terms","USTotHC","USterms"),
+             by=c("withinrange_pre","withinrange_post")]
+#calculate term rate - MFS stores
+temp[, MFStermrate := terms/TotHC]
+#calculate term rate - US stores
+temp[, UStermrate := USterms/USTotHC]
+
+#rename pre- and post- variable
+temp[withinrange_pre==1, post_period := 0];temp[withinrange_post==1, post_period := 1]
+
+# #t.tests (re-run and omit agg code)
+# t.test(temp[post_period==0,MFStermrate],temp[post_period==1,MFStermrate])
+
+#subset variables
+temp <- temp[, .(post_period,MFStermrate,UStermrate)]
+temp[, c("MFStermrate","UStermrate") := lapply(.SD,function(x) round(x,4)*100), .SDcols=c("MFStermrate","UStermrate")]
+temp[, MFStoUS_termrate_delta := MFStermrate-UStermrate]
+tempdelta <- temp[post_period==1] - temp[post_period==0]
+tempdelta[, post_period := "delta"]
+temp <- rbind(temp,tempdelta)
 
 
+#Q1FY18 snapshot of turnover
 
+#restrict to MFS stores for Q1FY18
+mfshc <- hc[STORE_NUM %in% mfsst[,STORE_NUM]]
+mfshc <- mfshc[FY==2018&(FP>=1&FP<=3)]
 
+##total us term rate
+ushc <- hc[, .(TotHC,terms,FP,FY)]
+ushc <- ushc[FY==2018&(FP>=1&FP<=3)]
+ushc <- ushc[, lapply(.SD,sum,na.rm=T), .SDcols=c("TotHC","terms"),
+             by=c("FP","FY")]
+colnames(ushc)[3:ncol(ushc)] <- paste0("US",colnames(ushc)[3:ncol(ushc)])
 
+#left join to pull in US ce scores, and tie to each msf store
+mfshc <- left_join(mfshc,ushc,by=c("FP","FY"))
+setDT(mfshc)
 
+#merge store numbers into hc data
+temp <- left_join(mfshc,mfsst,by="STORE_NUM")
+setDT(temp)
+
+#agg responses for the quarter
+temp <- temp[, lapply(.SD,sum,na.rm=T), .SDcols=c("TotHC","terms","USTotHC","USterms"),
+             by=c("FY")]
+#calculate term rate - MFS stores
+temp[, MFStermrate := terms/TotHC]
+#calculate term rate - US stores
+temp[, UStermrate := USterms/USTotHC]
+
+#subset variables
+temp <- temp[, .( FY,MFStermrate,UStermrate)]
+temp[, c("MFStermrate","UStermrate") := lapply(.SD,function(x) round(x,4)*100), .SDcols=c("MFStermrate","UStermrate")]
+temp[, MFStoUS_termrate_delta := MFStermrate-UStermrate]
 
