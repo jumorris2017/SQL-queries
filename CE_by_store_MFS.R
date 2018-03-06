@@ -90,7 +90,7 @@ temp[withinrange_pre==1, post_period := 0];temp[withinrange_post==1, post_period
 
 #subset variables
 temp <- temp[, .(post_period,cc_MFS_score,so_MFS_score,cc_US_score,so_US_score)]
-temp <- temp[, lapply(.SD,function(x) round(x,4)*100), by="post_period",
+temp <- temp[, lapply(.SD,function(x) round(x,3)*100), by="post_period",
      .SDcols=grep("score",colnames(temp),value=T)]
 temp[, cc_MFStoUS_delta := cc_MFS_score-cc_US_score]
 temp[, so_MFStoUS_delta := so_MFS_score-so_US_score]
@@ -99,6 +99,70 @@ tempdelta[, post_period := "delta"]
 temp <- rbind(temp,tempdelta)
 #write to .csv
 write.xlsx(temp,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/MFS_CE_pre-post.xlsx")
+
+#melt for barcharts
+tempm <- melt(temp, id="post_period")
+tempm <- tempm %>% separate(variable,c("question","storetype","variable"),sep="_")
+tempm <- tempm[storetype!="MFStoUS"]
+tempm[, variable := NULL]
+#swing delta back wide
+tempd <- dcast.data.table(tempm, question + storetype ~ post_period, value.var="value")
+tempd <- melt(tempd, id=c("question","storetype","delta"))
+setnames(tempd,"variable","post_period")
+
+#plot 1: 
+#set labels
+xlabels <- c("MFS","US")
+ylabel <- "TB Score"
+tlabel <- "Customer Connection Scores"
+sublabel <- "MFS and US CO Stores"
+caption <- "Conversion periods include CE survey responses from 4-months pre- and 4-months post-store conversion date"
+#manual legend labels
+lname <- "Conversion Period"
+llabels <- c("Pre", "Post")
+#values
+pdata1a <- tempd[question=="cc"]
+px1a <- tempd[question=="cc",storetype]
+py1a <- tempd[question=="cc",value]
+groupvar1a <- tempd[question=="cc",post_period]
+delvar1a <- tempd[question=="cc",round(delta,1)]
+#plot itself
+plot1a <- ggplot(data=pdata1a,aes(y=py1a,x=as.factor(px1a),fill=as.factor(groupvar1a))) + 
+  geom_bar(stat="identity", width = 0.95, position=position_dodge(), colour="black") +
+  scale_fill_brewer(palette = 2, name=lname, labels=llabels) + theme_economist() +
+  scale_x_discrete(name="",labels=xlabels) +
+  xlab("") + ylab(ylabel) + ggtitle(tlabel) + labs(subtitle=sublabel,caption=caption) +
+  geom_text(size = 3.5, aes(label=py1a,y=0), stat="identity", vjust = -1, position = position_dodge(0.95)) +
+  geom_text(size = 3.5, aes(label=paste0("delta = ",delvar1a),y=35), stat="identity", position = position_dodge(0)) 
+print(plot1a)
+
+#plot 1: 
+#set labels
+xlabels <- c("MFS","US")
+ylabel <- "TB Score"
+tlabel <- "Store Operations Scores"
+sublabel <- "MFS and US CO Stores"
+caption <- "Conversion periods include CE survey responses from 4-months pre- and 4-months post-store conversion date"
+#manual legend labels
+lname <- "Conversion Period"
+llabels <- c("Pre", "Post")
+#values
+pdata1a <- tempd[question=="so"]
+px1a <- tempd[question=="so",storetype]
+py1a <- tempd[question=="so",value]
+groupvar1a <- tempd[question=="so",post_period]
+delvar1a <- tempd[question=="so",round(delta,1)]
+#plot itself
+plot1a <- ggplot(data=pdata1a,aes(y=py1a,x=as.factor(px1a),fill=as.factor(groupvar1a))) + 
+  geom_bar(stat="identity", width = 0.95, position=position_dodge(), colour="black") +
+  scale_fill_brewer(palette = 1, name=lname, labels=llabels) + theme_economist() +
+  scale_x_discrete(name="",labels=xlabels) +
+  xlab("") + ylab(ylabel) + ggtitle(tlabel) + labs(subtitle=sublabel,caption=caption) +
+  geom_text(size = 3.5, aes(label=py1a,y=0), stat="identity", vjust = -1, position = position_dodge(0.95)) +
+  geom_text(size = 3.5, aes(label=paste0("delta = ",delvar1a),y=67), stat="identity", position = position_dodge(0)) 
+print(plot1a)
+
+
 
 
 ###PULSE
@@ -247,4 +311,49 @@ temp[, UStermrate := USterms/USTotHC]
 temp <- temp[, .( FY,MFStermrate,UStermrate)]
 temp[, c("MFStermrate","UStermrate") := lapply(.SD,function(x) round(x,4)*100), .SDcols=c("MFStermrate","UStermrate")]
 temp[, MFStoUS_termrate_delta := MFStermrate-UStermrate]
+
+
+
+#Q1FY18 STORE-LEVEL snapshot of cc/so
+q1stce <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/MFS_q1fy18_ccso.csv")
+q1stp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/MFS_q1fy18_pulse.csv")
+
+#set labels
+xlabel <- "Customer Connection Score"
+ylabel <- "Number of Stores"
+tlabel <- "Distribution of MFS Customer Connection Scores"
+sublabel <- "Q1 FY18"
+#plot itself
+plot2 <- ggplot(q1stce,aes(CC_SCORE)) + 
+  geom_histogram(binwidth=1,show.legend=FALSE,fill="lightgrey",col=I("black")) + 
+  theme_economist() + scale_colour_brewer(palette = 1, name="", labels="") +
+  scale_x_continuous(limits=c(17,55), breaks = scales::pretty_breaks(35)) +
+  xlab(xlabel) + ylab(ylabel) + ggtitle(tlabel) + labs(subtitle=sublabel)
+print(plot2)
+
+#set labels
+xlabel <- "Store Operations Score"
+ylabel <- "Number of Stores"
+tlabel <- "Distribution of MFS Store Operations Scores"
+sublabel <- "Q1 FY18"
+#plot itself
+plot2 <- ggplot(q1stce,aes(SO_SCORE)) + 
+  geom_histogram(binwidth=1,show.legend=FALSE,fill="lightgrey",col=I("black")) + 
+  theme_economist() + scale_colour_brewer(palette = 1, name="", labels="") +
+  scale_x_continuous(limits=c(49,76), breaks = scales::pretty_breaks(35)) +
+  xlab(xlabel) + ylab(ylabel) + ggtitle(tlabel) + labs(subtitle=sublabel)
+print(plot2)
+
+#set labels
+xlabel <- "Pulse ('Lived up to Values') Score"
+ylabel <- "Number of Stores"
+tlabel <- "Distribution of MFS Partner Pulse Scores"
+sublabel <- "Q1 FY18"
+#plot itself
+plot2 <- ggplot(q1stp,aes(Q1_AVG)) + 
+  geom_histogram(binwidth=.25,show.legend=FALSE,fill="lightgrey",col=I("black")) + 
+  theme_economist() + scale_colour_brewer(palette = 1, name="", labels="") +
+  scale_x_continuous(limits=c(3.5,6.75), breaks = scales::pretty_breaks(10)) +
+  xlab(xlabel) + ylab(ylabel) + ggtitle(tlabel) + labs(subtitle=sublabel)
+print(plot2)
 
