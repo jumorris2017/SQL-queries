@@ -287,7 +287,7 @@ swce_usco_dp1 <- swce_usco_dp[, list(q22_1_tb = sum(q22_1_tb,na.rm=T),
 swce_usco_dp1[, q22_1_score := round(q22_1_tb/q22_1_resp,3)*100]
 
 #set labels
-tlabel <- "Q22_1 by Day Part"
+tlabel <- "'This store takes coffee more seriously than other Starbucks stores' (Q22_1) by Day Part"
 sublabel <- "This store takes coffee more seriously than other Starbucks stores"
 caption <- "US Company Operated Stores"
 #labels
@@ -350,8 +350,8 @@ swce_usco_dp3 <- swce_usco_dp[, list(q22_3_tb = sum(q22_3_tb,na.rm=T),
 swce_usco_dp3[, q22_3_score := round(q22_3_tb/q22_3_resp,3)*100]
 
 #set labels
-tlabel <- "Q22_3 by Day Part"
-sublabel <- "I enjoyed being at this store"
+tlabel <- "Q22_3 ('I enjoyed being at this store') by Day Part"
+sublabel <- "Siren Works ad hoc CE survey"
 caption <- "US Company Operated Stores"
 #labels
 xlabels <- c("Early AM","AM","Midday","PM","Late PM")
@@ -395,7 +395,7 @@ swce_usco_dp3[, q2_2_score := round(q2_2_tb/q2_2_resp,3)*100]
 
 #set labels
 tlabel <- "Customer Connection by Day Part"
-sublabel <- "SirenWorks ad hoc questions"
+sublabel <- "Siren Works ad hoc CE survey"
 caption <- "US Company Operated Stores"
 #labels
 xlabels <- c("Early AM","AM","Midday","PM","Late PM")
