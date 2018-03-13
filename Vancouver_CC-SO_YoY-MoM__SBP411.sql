@@ -142,4 +142,6 @@ Order BY
     
     
     
-    select * from APPDWH.ADT_STORE
+
+    SELECT COUNT(*) FROM APPDWH.ADT_STORE org
+      WHERE org.CNTRY_CD = 'CA' AND org.OWNR_TYPE_CD = 'CO'
