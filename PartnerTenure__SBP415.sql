@@ -1,0 +1,31 @@
+WITH prtnr AS 
+(SELECT DISTINCT
+      SAP_PRTNR_ID
+      ,ORIG_HIRE_DT
+      ,MOST_RECENT_HIRE_DT
+      FROM D_PRTNR_VERS
+      WHERE EMP_STAT_CD = 'Active'
+ ) SELECT 
+      prtnr.SAP_PRTNR_ID AS PRTNR_NUM
+      ,prtnr.ORIG_HIRE_DT
+      ,prtnr.MOST_RECENT_HIRE_DT
+      ,gls.STORE_NUM
+      ,gls.JOB_ID
+
+FROM prtnr
+
+INNER JOIN (
+  SELECT * FROM (
+    SELECT PRTNR_NUM, STORE_NUM, JOB_ID,
+    ROW_NUMBER() OVER (PARTITION BY PRTNR_NUM ORDER BY END_DTM DESC) AS mostrec
+    FROM APPDWH.AFT_GLS_PRTNR_TMCARD@SBP411  
+    WHERE CNTRY_CD = 'US'
+      AND BUS_DT >= '10-APR-17'  --one week prior to launch of Pulse
+      AND JOB_ID IN (50000362,20000358,50000117)
+    ) WHERE mostrec = 1
+  ) gls 
+  
+ON prtnr.SAP_PRTNR_ID = gls.PRTNR_NUM
+
+
+
