@@ -113,8 +113,25 @@ plot(forecast(fit,h=25))
 # fit$AIC
 # length(fit$parameters$vect)
 
+#make a vector of past/future dates
+datevec_hist <- cct[, caldate]
+datevec_pred <- as.Date(x = integer(25), origin = "1970-01-01")
+for (i in 1:length(datevec_pred)) {
+  datevec_pred[i] <- max(cct[,caldate]) + i
+}
+dates <- c(datevec_hist,datevec_pred)
+dates <- dates[order(as.Date(dates, format = "%Y-%m-%d"))]
+
+#make dt of historical (fc$x) and predicted values (fc$mean)
+fc_full <- c(fc$x, fc$mean)
+fc_full <- as.data.table(fc_full)
+setnames(fc_full,"fc_full","ccscore")
+fc_full[, predvalue := 1]
+fc_full[1:length(fc$x), predvalue := 0]
+fc_full[, caldate := dates]
+
+
 # #plot distribution of residuals
 # plotForecastErrors(fc$residuals)
 # #ensure forecast errors are normally distributed with mean zero and constant variance
 # plot.ts(fc$residuals,main="MSTS/TBATS Residuals by Day")
-

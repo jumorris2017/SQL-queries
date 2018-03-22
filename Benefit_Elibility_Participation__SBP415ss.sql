@@ -47,10 +47,14 @@ a.RET_Part,
 a.[Job_Number]
 from hpohlman.PRO_BaseData a
 
-where a.FP_End = '01-29-2017'
+--where a.FP_End = '01-29-2017'
+where a.FP_End = '12-31-2017'
 and a.Action_Group = 'headcount'
 and a.[Country] = 'US'
 --and a.BFT_elig = 1
-and a.[Job_Number] In(50000362,50000358,50000117)
+--and a.[Job_Number] In(50000362,50000358,50000117,50018175,50000118)
 
 
+select * from hpohlman.PRO_BaseData
+--where [Last Name] = 'Dorr'
+--order by Job_Title

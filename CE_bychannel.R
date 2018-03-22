@@ -227,7 +227,7 @@ fit <- cfa(mymodel, data=ch, ordered=c("Q2_1","Q2_2","Q2_4","Q2_5","Q2_7"))
 summary(fit, fit.measures=TRUE)
 
 #bivariate logistic regression models
-m1 <- glm(Q1 ~ Q2_1,data=ch[ORD_MTHD_CD=='MOP'],family="binomial")
+m1 <- glm(Q1 ~ Q2_1,data=ch[ORD_MTHD_CD=='MOP'],family="quasipoisson")
 preds <- predict(m1,data=ch[ORD_MTHD_CD=='MOP'],type="response", se.fit=TRUE)
 predf <- preds$fit # predicted
 lower <- preds$fit - (1.96*preds$se.fit) # lower bounds
@@ -237,7 +237,7 @@ lines(predf)
 # lines(lower,lty=2)
 # lines(upper,lty=2)
 
-m2 <- glm(Q1 ~ Q2_1,data=ch[ORD_MTHD_CD=='CAFE'],family="binomial")
+m2 <- glm(Q1 ~ Q2_1,data=ch[ORD_MTHD_CD=='CAFE'],family="quasipoisson")
 preds <- predict(m2,data=ch[ORD_MTHD_CD=='CAFE'],type="response", se.fit=TRUE)
 predf <- preds$fit # predicted
 lower <- preds$fit - (1.96*preds$se.fit) # lower bounds
@@ -245,7 +245,7 @@ upper <- preds$fit + (1.96*preds$se.fit) # upper bounds
 plot(ch[ORD_MTHD_CD=='CAFE',Q2_1],ch[ORD_MTHD_CD=='CAFE',Q1])
 lines(predf)
 
-m3 <- glm(Q1 ~ Q2_1,data=ch[ORD_MTHD_CD=='OTW'],family="binomial")
+m3 <- glm(Q1 ~ Q2_1,data=ch[ORD_MTHD_CD=='OTW'],family="quasipoisson")
 preds <- predict(m3,data=ch[ORD_MTHD_CD=='OTW'],type="response", se.fit=TRUE)
 predf <- preds$fit # predicted
 lower <- preds$fit - (1.96*preds$se.fit) # lower bounds
@@ -253,7 +253,7 @@ upper <- preds$fit + (1.96*preds$se.fit) # upper bounds
 plot(ch[ORD_MTHD_CD=='OTW',Q2_1],ch[ORD_MTHD_CD=='OTW',Q1])
 lines(predf)
 
-m4 <- glm(Q1 ~ Q2_2+Q2_3+Q2_5,data=ch[ORD_MTHD_CD=='MOP'],family=binomial)
+m4 <- glm(Q1 ~ Q2_2+Q2_3+Q2_5,data=ch[ORD_MTHD_CD=='MOP'],family="quasipoisson")
 preds <- predict(m4,data=ch[ORD_MTHD_CD=='OTW'],type="response", se.fit=TRUE)
 predf <- preds$fit # predicted
 lower <- preds$fit - (1.96*preds$se.fit) # lower bounds
@@ -279,6 +279,7 @@ lines(predf)
 # 
 # #Set up logistic regression: Intent to Return (0/1)
 # #logistic regression model
+# ##need Q1 to be recoded to TB for this... otherwise use family = quasipoisson
 # mmop <- glm(Q1 ~ Q2_2 + Q2_8, data = chmop, family = binomial)
 # mcafe <- glm(Q1 ~ Q2_2 + Q2_8, data = chcafe, family = binomial)
 # motw <- glm(Q1 ~ Q2_2 + Q2_8, data = chotw, family = binomial)
