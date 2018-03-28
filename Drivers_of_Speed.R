@@ -14,6 +14,8 @@ data_dir <- "O:/CoOp/CoOp194_PROReportng&OM/Julie"
 ce <- fread(paste0(data_dir,"/FP3-5_FY18_CC-Speed_StoreLevel.csv"))
 hs <- fread(paste0(data_dir,"/FP3-5_FY18_homestore.csv"))
 tsd <- fread(paste0(data_dir,"/FP3-5_FY18_TSD.csv"))
+rural <- fread(paste0(data_dir,"/storenum_urbanity.csv"))
+prodmix <- fread(paste0(data_dir,"/product_mix.csv"))
 
 #calculate home store percent
 hs[, hspct := round(HS_CUST_COUNT/ALL_CUST_COUNT,4)]
