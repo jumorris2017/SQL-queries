@@ -6,13 +6,14 @@
 library(data.table)
 library(nlme)
 library(lubridate)
+library(flipRegression)
 
 ##FEBRUARY
 #set path (new Q)
 data_dir <- "O:/CoOp/CoOp194_PROReportng&OM/Julie"
 
 #load data
-ce <- fread(paste0(data_dir,"/FP3-5_FY18_CC-Speed_StoreLevel.csv"))
+ce <- fread(paste0(data_dir,"/Q1_FY18_Speed_StoreLevel_bychannel.csv"))
 hs <- fread(paste0(data_dir,"/FP3-5_FY18_homestore.csv"))
 tsd <- fread(paste0(data_dir,"/FP3-5_FY17-18_TSD.csv"))
 rural <- fread(paste0(data_dir,"/storenum_urbanity.csv"))
@@ -29,11 +30,11 @@ hs <- hs[, .(STORE_NUM,hspct)]
 
 #speed
 #agg by year
-ce <- ce[, list(SP_RESPONSE_TOTAL=sum(SP_RESPONSE_TOTAL,na.rm=T),
-                SP_TB_CNT=sum(SP_TB_CNT,na.rm=T)),
-           by=c("FSCL_YR_NUM","STORE_NUM")]
+ce <- ce[, list(SP_RESPONSE_TOTAL=sum(TOTAL_RSPNS,na.rm=T),
+                SP_TB_CNT=sum(TOTAL_TB,na.rm=T)),
+           by=c("FSCL_YR_NUM","STORE_NUM","ORD_MTHD_CD")]
 ce[, sp_score := round(SP_TB_CNT/SP_RESPONSE_TOTAL,3)]
-ce <- ce[, .(STORE_NUM,sp_score)]
+ce <- ce[, .(STORE_NUM,sp_score,ORD_MTHD_CD)]
 
 #calculate TSDs
 #agg by year
@@ -42,9 +43,10 @@ tsd <- tsd[, list(CustTrans=sum(CustTrans,na.rm=T),
            by=c("FSCL_YR_NUM","RGN_ORG_LVL_DESCR","RGN_ORG_LVL_ID","STORE_NUM")]
 tsd[, tsd := round(CustTrans/day_count,1)]
 #swing wide for comp
-tsd <- dcast.data.table(tsd, STORE_NUM + RGN_ORG_LVL_DESCR + RGN_ORG_LVL_ID ~ FSCL_YR_NUM, value.var="tsd")
+tsd <- dcast.data.table(tsd, STORE_NUM + RGN_ORG_LVL_DESCR + RGN_ORG_LVL_ID ~ FSCL_YR_NUM, value.var=c("tsd","day_count"))
 #setnames
-setnames(tsd,c("2017","2018"),c("tsd18","tsd17"))
+setnames(tsd,c("tsd_2018","tsd_2017","day_count_2018"),c("tsd18","tsd17","daycount"))
+tsd[, day_count_2017 := NULL]
 #calculate comp
 tsd[, tsd18comp := round((tsd18-tsd17)/tsd17,3)]
 
@@ -72,8 +74,8 @@ prodmix[, bev_prp := round(N_ITEMS_BEV/N_ITEMS_TOTAL,3)]
 prodmix <- prodmix[, .(STORE_NUM,food_prp,bev_prp)]
 
 #sm tenure in store
-setnames(sm,"Store_Num","STORE_NUM")
-sm <- sm[, .(STORE_NUM,SM_Tenure_Store_Yrs)]
+setnames(sm,"TimeInPosition","sm_tenure_in_store")
+sm <- sm[, .(STORE_NUM,sm_tenure_in_store)]
 
 #average hourly partner tenure
 hpten[, hire_date := as_date(MOST_RECENT_HIRE_DT)]
@@ -87,27 +89,65 @@ hpten[, avghrlyten_yrs := round(avghrlyten_yrs/365.25,2)]
 
 #calculate hourly partner turnover
 #agg by year
-setnames(hpturn,"StoreNum","STORE_NUM")
-hpturn <- hpturn[Period_Name=="FP-2018-4"|Period_Name=="FP-2018-5", 
-                 list(Terms=sum(Terms,na.rm=T),
-                        PartnerDays=sum(PartnerDays,na.rm=T),
-                        Org_Days=sum(Org_Days,na.rm=T)),
-           by=c("STORE_NUM")]
-hpturn[, hrlyturnover := round(Terms/(PartnerDays/Org_Days),3)]
-hpturn <- hpturn[, .(STORE_NUM,hrlyturnover,Org_Days)]
-hpturn <- na.omit(hpturn,cols="STORE_NUM")
+hpturn[, hrlyturnover := round(SEPCOUNT/HEADCOUNT,3)]
+hpturn <- hpturn[, .(STORE_NUM,hrlyturnover)]
 
 #merge
 cedt <- Reduce(function(x, y) {merge(x, y, by=c("STORE_NUM"), all = TRUE)},
                list(ce,hs,tsd,rural,prodmix,hf,sr_dt,sm,hpten,hpturn))
-cedt <- na.omit(cedt,cols=c("sp_score","tsd18","tsd18comp","rural_flag",
-                            "DRIVE_THRU_IND","RGN_ORG_LVL_DESCR"))
+cedt <- na.omit(cedt)
+
+#relative weights analysis -- library(flipRegression)
+# Regression(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
+#              bev_prp + highfreq_cust_prp + SR_trans_prp +
+#              sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+#              daycount + DRIVE_THRU_IND, data=cedt,
+#            output = "Relative Importance Analysis")
+# 
+# lm1 <- lm(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
+#               bev_prp + highfreq_cust_prp + SR_trans_prp +
+#               sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+#               daycount + DRIVE_THRU_IND, data=cedt)
+# summary(lm1)
+
+#run models split by order method
+ll = lmList(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
+              food_prp + bev_prp + highfreq_cust_prp + SR_trans_prp +
+              sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+              daycount + DRIVE_THRU_IND | ORD_MTHD_CD,
+            data=cedt)
+# ll = lmList(sp_score ~ tsd18 + highfreq_cust_prp +
+#               sm_tenure_in_store + avghrlyten_yrs + hrlyturnover | RGN_ORG_LVL_DESCR, 
+#             data=cedt)
+# ll = lmList(sp_score ~ hspct + tsd18 + tsd18comp + 
+#               bev_prp + highfreq_cust_prp + SR_trans_prp +
+#               sm_tenure_in_store + avghrlyten_yrs + hrlyturnover + 
+#               DRIVE_THRU_IND | RGN_ORG_LVL_DESCR, 
+#             data=cedt)
+summary(ll$'CAFE')
+summary(ll$'MOP')
+summary(ll$'OTW')
+
+ll = lmList(sp_score ~ DRIVE_THRU_IND + hspct | ORD_MTHD_CD,
+            data=cedt)
+summary(ll$'CAFE')
+summary(ll$'MOP')
+summary(ll$'OTW')
 
 #run models split by region
-newData <- cedt[, .(STORE_NUM,RGN_ORG_LVL_DESCR,sp_score,tsd18,tsd18comp,
-                    rural_flag,DRIVE_THRU_IND)]
-ll = lmList(sp_score ~ tsd18 + tsd18comp + rural_flag +
-              DRIVE_THRU_IND | RGN_ORG_LVL_DESCR, data=newData)
+# ll = lmList(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
+#               food_prp + bev_prp + highfreq_cust_prp + SR_trans_prp +
+#               sm_tenure_in_store + avghrlyten_yrs + hrlyturnover + 
+#               daycount + DRIVE_THRU_IND | RGN_ORG_LVL_DESCR, 
+#             data=cedt)
+# ll = lmList(sp_score ~ tsd18 + highfreq_cust_prp +
+#               sm_tenure_in_store + avghrlyten_yrs + hrlyturnover | RGN_ORG_LVL_DESCR, 
+#             data=cedt)
+# ll = lmList(sp_score ~ hspct + tsd18 + tsd18comp + 
+#               bev_prp + highfreq_cust_prp + SR_trans_prp +
+#               sm_tenure_in_store + avghrlyten_yrs + hrlyturnover + 
+#               DRIVE_THRU_IND | RGN_ORG_LVL_DESCR, 
+#             data=cedt)
 summary(ll$'FLORIDA')
 summary(ll$'HAWAII')
 summary(ll$'LA CENTRAL CA')
