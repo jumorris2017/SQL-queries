@@ -12,7 +12,7 @@
         
         INNER JOIN APPDWH.ADT_CAL ca
             ON f.BUSINESS_DATE = ca.CAL_DT
-            AND ca.FSCL_YR_NUM = 2018 AND ca.FSCL_PER_IN_YR_NUM = 5
+            AND ca.FSCL_YR_NUM = 2018 AND ca.FSCL_PER_IN_YR_NUM = 4
         
         INNER JOIN APPBUS.AFT_STORE_COMP_PER_VW comp
             ON f.STORE_NUMBER = comp.STORE_NUMBER

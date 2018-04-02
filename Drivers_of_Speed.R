@@ -19,7 +19,8 @@ tsd <- fread(paste0(data_dir,"/FP3-5_FY17-18_TSD.csv"))
 rural <- fread(paste0(data_dir,"/storenum_urbanity.csv"))
 prodmix <- fread(paste0(data_dir,"/product_mix.csv"))
 hf <- fread(paste0(data_dir,"/highfreq_prop.csv"))
-sr_dt <- fread(paste0(data_dir,"/SRtrans_DTflag.csv"))
+sr <- fread(paste0(data_dir,"/SRtrans.csv"))
+dt <- fread(paste0(data_dir,"/DTflag.csv"))
 sm <- fread(paste0(data_dir,"/sm_tenure_in_store.csv"))
 hpten <- fread(paste0(data_dir,"/hourly_partner_tenure.csv"))
 hpturn <- fread(paste0(data_dir,"/hourly_partner_turnover.csv"))
@@ -29,12 +30,21 @@ hs[, hspct := round(HS_CUST_COUNT/ALL_CUST_COUNT,4)]
 hs <- hs[, .(STORE_NUM,hspct)]
 
 #speed
-#agg by year
-ce <- ce[, list(SP_RESPONSE_TOTAL=sum(TOTAL_RSPNS,na.rm=T),
+#agg by year and order method
+ce1 <- ce[, list(SP_RESPONSE_TOTAL=sum(TOTAL_RSPNS,na.rm=T),
                 SP_TB_CNT=sum(TOTAL_TB,na.rm=T)),
            by=c("FSCL_YR_NUM","STORE_NUM","ORD_MTHD_CD")]
-ce[, sp_score := round(SP_TB_CNT/SP_RESPONSE_TOTAL,3)]
-ce <- ce[, .(STORE_NUM,sp_score,ORD_MTHD_CD)]
+ce1[, sp_score := round(SP_TB_CNT/SP_RESPONSE_TOTAL,3)]
+#swing wide by trans type
+ce1 <- dcast.data.table(ce1, STORE_NUM ~ ORD_MTHD_CD, value.var="sp_score")
+colnames(ce1)[2:4] <- paste0("sp_",colnames(ce1)[2:4])
+
+#agg by year
+ce2 <- ce[, list(SP_RESPONSE_TOTAL=sum(TOTAL_RSPNS,na.rm=T),
+                 SP_TB_CNT=sum(TOTAL_TB,na.rm=T)),
+          by=c("FSCL_YR_NUM","STORE_NUM")]
+ce2[, sp_score := round(SP_TB_CNT/SP_RESPONSE_TOTAL,3)]
+ce2 <- ce2[, .(STORE_NUM,sp_score)]
 
 #calculate TSDs
 #agg by year
@@ -51,10 +61,10 @@ tsd[, day_count_2017 := NULL]
 tsd[, tsd18comp := round((tsd18-tsd17)/tsd17,3)]
 
 #SR transaction (%)
-sr_dt <- dcast.data.table(sr_dt, STORE_NUM + DRIVE_THRU_IND ~ SR_MEMBER, value.var="TTL_TRANS_CNT")
-setnames(sr_dt,c("0","1"),c("nonSR","SR"))
-sr_dt[, SR_trans_prp := round(SR/(nonSR+SR),3)]
-sr_dt <- sr_dt[, .(STORE_NUM,DRIVE_THRU_IND,SR_trans_prp)]
+sr <- dcast.data.table(sr, STORE_NUM ~ SR_MEMBER, value.var="TTL_TRANS_CNT")
+setnames(sr,c("0","1"),c("nonSR","SR"))
+sr[, SR_trans_prp := round(SR/(nonSR+SR),3)]
+sr <- sr[, .(STORE_NUM,SR_trans_prp)]
 
 #high freq customers (%)
 hf <- dcast.data.table(hf, STORE_NUM ~ HIGH_TRANS_CUST, value.var="N_CUST")
@@ -94,45 +104,66 @@ hpturn <- hpturn[, .(STORE_NUM,hrlyturnover)]
 
 #merge
 cedt <- Reduce(function(x, y) {merge(x, y, by=c("STORE_NUM"), all = TRUE)},
-               list(ce,hs,tsd,rural,prodmix,hf,sr_dt,sm,hpten,hpturn))
+               list(ce1,ce2,hs,tsd,rural,prodmix,hf,sr,dt,sm,hpten,hpturn))
 cedt <- na.omit(cedt)
 
 #relative weights analysis -- library(flipRegression)
-# Regression(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
-#              bev_prp + highfreq_cust_prp + SR_trans_prp +
-#              sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
-#              daycount + DRIVE_THRU_IND, data=cedt,
-#            output = "Relative Importance Analysis")
-# 
-# lm1 <- lm(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
-#               bev_prp + highfreq_cust_prp + SR_trans_prp +
-#               sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
-#               daycount + DRIVE_THRU_IND, data=cedt)
-# summary(lm1)
+Regression(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
+             bev_prp + highfreq_cust_prp + SR_trans_prp +
+             sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+             daycount + DRIVE_THRU_IND, data=cedt,
+           output = "Relative Importance Analysis")
+
+lm1 <- lm(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
+              bev_prp + highfreq_cust_prp + SR_trans_prp +
+              sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+              daycount + DRIVE_THRU_IND, data=cedt)
+summary(lm1)
+
+Regression(sp_CAFE ~ hspct + tsd18 + tsd18comp + rural_flag +
+             bev_prp + highfreq_cust_prp + SR_trans_prp +
+             sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+             daycount + DRIVE_THRU_IND, data=cedt,
+           output = "Relative Importance Analysis")
+
+lm2 <- lm(sp_CAFE ~ hspct + tsd18 + tsd18comp + rural_flag +
+            bev_prp + highfreq_cust_prp + SR_trans_prp +
+            sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+            daycount + DRIVE_THRU_IND, data=cedt)
+summary(lm2)
+
+Regression(sp_MOP ~ hspct + tsd18 + tsd18comp + rural_flag +
+             bev_prp + highfreq_cust_prp + SR_trans_prp +
+             sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+             daycount + DRIVE_THRU_IND, data=cedt,
+           output = "Relative Importance Analysis")
+
+lm3 <- lm(sp_MOP ~ hspct + tsd18 + tsd18comp + rural_flag +
+            bev_prp + highfreq_cust_prp + SR_trans_prp +
+            sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+            daycount + DRIVE_THRU_IND, data=cedt)
+summary(lm3)
+
+Regression(sp_OTW ~ hspct + tsd18 + tsd18comp + rural_flag +
+             bev_prp + highfreq_cust_prp + SR_trans_prp +
+             sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+             daycount, data=cedt,
+           output = "Relative Importance Analysis")
+
+lm4 <- lm(sp_OTW ~ hspct + tsd18 + tsd18comp + rural_flag +
+            bev_prp + highfreq_cust_prp + SR_trans_prp +
+            sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+            daycount, data=cedt)
+summary(lm4)
 
 #run models split by order method
-ll = lmList(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
-              food_prp + bev_prp + highfreq_cust_prp + SR_trans_prp +
-              sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
-              daycount + DRIVE_THRU_IND | ORD_MTHD_CD,
-            data=cedt)
-# ll = lmList(sp_score ~ tsd18 + highfreq_cust_prp +
-#               sm_tenure_in_store + avghrlyten_yrs + hrlyturnover | RGN_ORG_LVL_DESCR, 
-#             data=cedt)
-# ll = lmList(sp_score ~ hspct + tsd18 + tsd18comp + 
-#               bev_prp + highfreq_cust_prp + SR_trans_prp +
-#               sm_tenure_in_store + avghrlyten_yrs + hrlyturnover + 
-#               DRIVE_THRU_IND | RGN_ORG_LVL_DESCR, 
-#             data=cedt)
-summary(ll$'CAFE')
-summary(ll$'MOP')
-summary(ll$'OTW')
+summary(lm(sp_score ~ DRIVE_THRU_IND, data=cedt))
+summary(lm(sp_CAFE ~ DRIVE_THRU_IND, data=cedt))
+summary(lm(sp_MOP ~ DRIVE_THRU_IND, data=cedt))
 
-ll = lmList(sp_score ~ DRIVE_THRU_IND + hspct | ORD_MTHD_CD,
-            data=cedt)
-summary(ll$'CAFE')
-summary(ll$'MOP')
-summary(ll$'OTW')
+t.test(cedt[DRIVE_THRU_IND==0,sp_score],cedt[DRIVE_THRU_IND==1,sp_score])
+t.test(cedt[DRIVE_THRU_IND==0,sp_CAFE],cedt[DRIVE_THRU_IND==1,sp_CAFE])
+t.test(cedt[DRIVE_THRU_IND==0,sp_MOP],cedt[DRIVE_THRU_IND==1,sp_MOP])
 
 #run models split by region
 # ll = lmList(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
