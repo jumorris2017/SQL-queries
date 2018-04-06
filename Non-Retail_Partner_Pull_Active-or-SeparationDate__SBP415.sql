@@ -1,0 +1,29 @@
+--415
+with SQ as
+(select a.SAP_PRTNR_ID AS PRTNR_ID
+      ,a.PRTNR_CNTRY_CD
+      ,a.ORIG_HIRE_DT
+      ,a.MOST_RECENT_HIRE_DT
+      ,a.SEPARATION_DT
+      ,a.SNAPSHOT_DT
+      ,a.ETL_INSERT_DTM
+      ,ROW_NUMBER() OVER (PARTITION BY a.SAP_PRTNR_ID ORDER BY a.EFF_FROM_DT DESC) AS mostrec
+      ,a.EMP_STAT_CD 
+      ,c.JOB_ID
+      ,c.JOB_NM
+from APPPDW.DDT_PRTNR a
+
+join APPPDW.DFT_RELATIONSHIPS b
+on a.SNAPSHOT_DT = b.SNAPSHOT_DT
+and a.PRTNR_VERS_KEY = b.PRTNR_VERS_KEY
+ 
+join APPPDW.DDV_POSN_JOB c
+on a.SNAPSHOT_DT = c.SNAPSHOT_DT
+and b.POSN_JOB_VERS_KEY = c.POSN_JOB_VERS_KEY
+ 
+where a.SNAPSHOT_DT = to_date('02-26-2018', 'MM-DD-YYYY')
+and a.EMP_STAT_CD IN ('Separated','Active')
+--and a.SAP_PRTNR_ID IN (1215688,1384212,1143682)
+and a.SAP_PRTNR_ID IN (2312476,2097396,2479813)
+) select * from SQ
+WHERE mostrec = 1

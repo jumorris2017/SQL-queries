@@ -24,6 +24,7 @@ dt <- fread(paste0(data_dir,"/DTflag.csv"))
 sm <- fread(paste0(data_dir,"/sm_tenure_in_store.csv"))
 hpten <- fread(paste0(data_dir,"/hourly_partner_tenure.csv"))
 hpturn <- fread(paste0(data_dir,"/hourly_partner_turnover.csv"))
+uplh <- fread(paste0(data_dir,"/FP3-5_FY17-18_UPLH.csv"))
 
 #calculate home store percent
 hs[, hspct := round(HS_CUST_COUNT/ALL_CUST_COUNT,4)]
@@ -102,58 +103,65 @@ hpten[, avghrlyten_yrs := round(avghrlyten_yrs/365.25,2)]
 hpturn[, hrlyturnover := round(SEPCOUNT/HEADCOUNT,3)]
 hpturn <- hpturn[, .(STORE_NUM,hrlyturnover)]
 
+#units per labor hour
+uplh <- uplh[, .(STORE_NUM,UPLH)]
+
 #merge
 cedt <- Reduce(function(x, y) {merge(x, y, by=c("STORE_NUM"), all = TRUE)},
-               list(ce1,ce2,hs,tsd,rural,prodmix,hf,sr,dt,sm,hpten,hpturn))
-cedt <- na.omit(cedt)
+               list(ce1,ce2,hs,tsd,rural,prodmix,hf,sr,dt,sm,hpten,hpturn,uplh))
+#cedt <- na.omit(cedt)
 
 #relative weights analysis -- library(flipRegression)
 Regression(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
              bev_prp + highfreq_cust_prp + SR_trans_prp +
              sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
-             daycount + DRIVE_THRU_IND, data=cedt,
+             daycount + DRIVE_THRU_IND + UPLH, data=cedt,
            output = "Relative Importance Analysis")
 
 lm1 <- lm(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
               bev_prp + highfreq_cust_prp + SR_trans_prp +
               sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
-              daycount + DRIVE_THRU_IND, data=cedt)
+              #daycount + 
+              DRIVE_THRU_IND + UPLH, data=cedt)
 summary(lm1)
 
 Regression(sp_CAFE ~ hspct + tsd18 + tsd18comp + rural_flag +
              bev_prp + highfreq_cust_prp + SR_trans_prp +
              sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
-             daycount + DRIVE_THRU_IND, data=cedt,
+             daycount + DRIVE_THRU_IND + UPLH, data=cedt,
            output = "Relative Importance Analysis")
 
 lm2 <- lm(sp_CAFE ~ hspct + tsd18 + tsd18comp + rural_flag +
             bev_prp + highfreq_cust_prp + SR_trans_prp +
             sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
-            daycount + DRIVE_THRU_IND, data=cedt)
+            #daycount + 
+            DRIVE_THRU_IND + UPLH, data=cedt)
 summary(lm2)
 
 Regression(sp_MOP ~ hspct + tsd18 + tsd18comp + rural_flag +
              bev_prp + highfreq_cust_prp + SR_trans_prp +
              sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
-             daycount + DRIVE_THRU_IND, data=cedt,
+             daycount + DRIVE_THRU_IND + UPLH, data=cedt,
            output = "Relative Importance Analysis")
 
 lm3 <- lm(sp_MOP ~ hspct + tsd18 + tsd18comp + rural_flag +
             bev_prp + highfreq_cust_prp + SR_trans_prp +
             sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
-            daycount + DRIVE_THRU_IND, data=cedt)
+            #daycount + 
+            DRIVE_THRU_IND + UPLH, data=cedt)
 summary(lm3)
 
 Regression(sp_OTW ~ hspct + tsd18 + tsd18comp + rural_flag +
              bev_prp + highfreq_cust_prp + SR_trans_prp +
              sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
-             daycount, data=cedt,
+             daycount + UPLH, data=cedt,
            output = "Relative Importance Analysis")
 
 lm4 <- lm(sp_OTW ~ hspct + tsd18 + tsd18comp + rural_flag +
             bev_prp + highfreq_cust_prp + SR_trans_prp +
             sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
-            daycount, data=cedt)
+            #daycount + 
+            UPLH, data=cedt)
 summary(lm4)
 
 #run models split by order method
@@ -193,3 +201,48 @@ summary(ll$'SOUTH CENTRAL')
 summary(ll$'SOUTHEAST')
 summary(ll$'SOUTHERN CALIFORNIA')
 summary(ll$'WESTERN MOUNTAIN')
+
+
+
+#relative weights analysis -- library(flipRegression)
+lm1c <- lm(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
+            bev_prp + highfreq_cust_prp + SR_trans_prp +
+            sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+            daycount + UPLH, data=cedt[DRIVE_THRU_IND==0])
+summary(lm1c)
+
+lm1d <- lm(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
+            bev_prp + highfreq_cust_prp + SR_trans_prp +
+            sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+            daycount + UPLH, data=cedt[DRIVE_THRU_IND==1])
+summary(lm1d)
+
+lm2c <- lm(sp_CAFE ~ hspct + tsd18 + tsd18comp + rural_flag +
+             bev_prp + highfreq_cust_prp + SR_trans_prp +
+             sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+             daycount + UPLH, data=cedt[DRIVE_THRU_IND==0])
+summary(lm2c)
+
+lm2d <- lm(sp_CAFE ~ hspct + tsd18 + tsd18comp + rural_flag +
+             bev_prp + highfreq_cust_prp + SR_trans_prp +
+             sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+             daycount + UPLH, data=cedt[DRIVE_THRU_IND==1])
+summary(lm2d)
+
+lm3c <- lm(sp_MOP ~ hspct + tsd18 + tsd18comp + rural_flag +
+             bev_prp + highfreq_cust_prp + SR_trans_prp +
+             sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+             daycount + UPLH, data=cedt[DRIVE_THRU_IND==0])
+summary(lm3c)
+
+lm3d <- lm(sp_MOP ~ hspct + tsd18 + tsd18comp + rural_flag +
+             bev_prp + highfreq_cust_prp + SR_trans_prp +
+             sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+             daycount + UPLH, data=cedt[DRIVE_THRU_IND==1])
+summary(lm3d)
+
+lm4d <- lm(sp_OTW ~ hspct + tsd18 + tsd18comp + rural_flag +
+             bev_prp + highfreq_cust_prp + SR_trans_prp +
+             sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+             daycount + UPLH, data=cedt[DRIVE_THRU_IND==1])
+summary(lm4d)
