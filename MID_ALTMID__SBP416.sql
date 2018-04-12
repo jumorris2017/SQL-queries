@@ -3,11 +3,11 @@
 
 /* Counts SR transactions associated with MID/ALTMID combinations */
 SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
-    WHERE ac.ALT_MRCHT_ID IN (52537) 
-    --AND ac.MRCHT_ID IN (97400700338) 
-    AND ac.TRANS_DT > '26-feb-18' 
+    WHERE ac.ALT_MRCHT_ID IN (6291,6446,6301,6102,6427,6466,6455,112,2418,2312,6018) 
+    AND ac.MRCHT_ID IN (97146000005) 
+    AND ac.TRANS_DT > '11-mar-18' 
     GROUP BY ac.MRCHT_ID, ac.ALT_MRCHT_ID
-
+    
 /* Counts SR transactions associated with MID/ALTMID combinations */
 SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
     WHERE ( (ac.ALT_MRCHT_ID IN (40167) AND ac.MRCHT_ID IN (97039100009 ))
