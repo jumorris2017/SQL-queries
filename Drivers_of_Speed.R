@@ -203,12 +203,18 @@ t.test(cedt[DRIVE_THRU_IND==0,sp_MOP],cedt[DRIVE_THRU_IND==1,sp_MOP])
 # summary(ll$'WESTERN MOUNTAIN')
 
 #ALL
+lm1 <- lm(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
+            bev_prp + highfreq_cust_prp + SR_trans_prp +
+            sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
+            UPLH + DRIVE_THRU_IND, data=cedt)
+summary(lm1)
 Regression(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
              bev_prp + highfreq_cust_prp + SR_trans_prp +
              sm_tenure_in_store + avghrlyten_yrs + hrlyturnover +
              UPLH + DRIVE_THRU_IND, data=cedt,
            output = "Relative Importance Analysis")
 
+#SPLIT
 #relative weights analysis -- library(flipRegression)
 lm1c <- lm(sp_score ~ hspct + tsd18 + tsd18comp + rural_flag +
             bev_prp + highfreq_cust_prp + SR_trans_prp +

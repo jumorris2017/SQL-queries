@@ -7,13 +7,13 @@
         , ca.FSCL_QTR_IN_YR_NUM
         --, ca.FSCL_PER_IN_YR_NUM
         --, org.RGN_ORG_LVL_DESCR
-        , f.STORE_NUMBER
-        , SUM(f.NET_DISCOUNTED_SALES_AMT) "QuarterlySales"
-        , SUM(f.NET_DISCOUNTED_SALES_LY_AMT) "LYQuarterlySales"
+        --, f.STORE_NUMBER
+        , SUM(f.NET_DISCOUNTED_SALES_AMT) "Sales"
+        , SUM(f.NET_DISCOUNTED_SALES_LY_AMT) "LYSales"
         , ROUND((SUM(f.NET_DISCOUNTED_SALES_AMT) - SUM(f.NET_DISCOUNTED_SALES_LY_AMT)) / SUM(f.NET_DISCOUNTED_SALES_LY_AMT),4) AS salescomp
-        --, SUM(f.CUST_TRANS_CNT) "CustTrans" -- for COSD/TSDs
-        --, SUM(f.ACTIVE_STORE_DAY_CNT) "day_count" -- for COSD/TSDs
-        --, ROUND(SUM(f.CUST_TRANS_CNT) / SUM(f.ACTIVE_STORE_DAY_CNT),1) AS tsd
+        , SUM(f.CUST_TRANS_CNT) "CustTrans" -- for COSD/TSDs
+        , SUM(f.ACTIVE_STORE_DAY_CNT) "day_count" -- for COSD/TSDs
+        , ROUND(SUM(f.CUST_TRANS_CNT) / SUM(f.ACTIVE_STORE_DAY_CNT),1) AS tsd
 
     FROM APPBUS.DFT_INTL_STORE_DAY_VW f      
         
@@ -34,8 +34,9 @@
             AND ca.FSCL_PER_BEG_DT = comp.FISCAL_PERIOD_BEGIN_DATE
             AND COMP_CODE = 'Y'
     
-    GROUP BY f.STORE_NUMBER
-    , ca.FSCL_YR_NUM
+    GROUP BY ca.FSCL_YR_NUM
+    --f.STORE_NUMBER
+    --, ca.FSCL_YR_NUM
     --, ca.FSCL_WK_IN_YR_NUM
     , ca.FSCL_QTR_IN_YR_NUM
     --, ca.FSCL_PER_IN_YR_NUM

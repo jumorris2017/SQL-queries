@@ -3,10 +3,12 @@
 
 /* Counts SR transactions associated with MID/ALTMID combinations */
 SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
-    WHERE ac.ALT_MRCHT_ID IN (6291,6446,6301,6102,6427,6466,6455,112,2418,2312,6018) 
-    AND ac.MRCHT_ID IN (97146000005) 
+    WHERE ac.MRCHT_ID IN (97146000005) 
+    AND ac.ALT_MRCHT_ID IN (6112) 
+    --AND ac.MRCHT_ID IN (97146000005) 
     AND ac.TRANS_DT > '11-mar-18' 
     GROUP BY ac.MRCHT_ID, ac.ALT_MRCHT_ID
+    ORDER BY ac.MRCHT_ID, ac.ALT_MRCHT_ID
     
 /* Counts SR transactions associated with MID/ALTMID combinations */
 SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
@@ -18,21 +20,22 @@ SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
 
 
 /* Laste date received SR transactions associated with MID/ALTMID combinations */
-SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, TRUNC(ac.TRANS_DT) FROM APPCA.F_CARD ac
-    WHERE 
-    --ac.MRCHT_ID IN (97056000003)
-    --AND 
-    ac.ALT_MRCHT_ID IN (48691) 
-        --AND ac.TRANS_DT > '03-JUN-17' 
-    ORDER BY ac.ALT_MRCHT_ID, TRUNC(ac.TRANS_DT) DESC 
+WITH SQ AS(
+SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, TRUNC(ac.TRANS_DT) 
+    , row_number() over(partition by ac.MRCHT_ID, ac.ALT_MRCHT_ID order by TRUNC(ac.TRANS_DT) desc) mostrecent
+    FROM APPCA.F_CARD ac
+      WHERE ac.MRCHT_ID IN (97317800001)
+      AND ac.ALT_MRCHT_ID IN (75580,78029,101110112,101110113,104110445,105110127) 
+      AND ac.TRANS_DT > '03-DEC-17' 
+    --ORDER BY ac.ALT_MRCHT_ID, TRUNC(ac.TRANS_DT) DESC 
+) SELECT * FROM SQ
+WHERE mostrecent = 1
 
 /*SR transactions per month associated with MID/ALTMID combinations */
 SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) AS TRANS FROM APPCA.F_CARD ac
-    WHERE ac.ALT_MRCHT_ID IN (75621) 
-    AND ac.MRCHT_ID IN (97025906215,97231300005)
-    AND (ac.TRANS_DT >= '30-OCT-17' AND ac.TRANS_DT <= '26-NOV-17')
-    --AND (ac.TRANS_DT >= '27-NOV-17' AND ac.TRANS_DT <= '31-DEC-17')
-    --AND (ac.TRANS_DT >= '01-JAN-18' AND ac.TRANS_DT <= '28-JAN-18')
+    WHERE ac.MRCHT_ID IN (97317800001)
+    AND ac.ALT_MRCHT_ID IN (75580,78029,101110112,101110113,104110445,105110127) 
+    AND (ac.TRANS_DT >= '16-MAR-18' AND ac.TRANS_DT <= '16-APR-18')
 GROUP BY  ac.MRCHT_ID, ac.ALT_MRCHT_ID
 
 
