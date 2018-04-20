@@ -4,6 +4,8 @@
 library(data.table)
 library(ggplot2)
 library(ggthemes)
+library(ppcor)
+library(scales)
 
 #load data
 data_dir <- "O:/CoOp/CoOp194_PROReportng&OM/Julie"
@@ -21,6 +23,12 @@ irs <- fread(paste0(data_dir,"/intent_to_return_sales.csv"))
 
 #merge together
 ir <- Reduce(function(x, y) {merge(x, y, by=c("GUID_USER_ID"), all = TRUE)}, list(ir60,ir30,ir7,ir1))
+irtb <- Reduce(function(x, y) {merge(x, y, by=c("FSCL_YR_NUM","FSCL_WK_IN_YR_NUM"), all = TRUE)}, list(irtb,irs))
+irtb <- irtb[!(FSCL_YR_NUM==2018&FSCL_WK_IN_YR_NUM==29)]
+
+#sales data 
+irtb[, tsd := round(CustTrans/day_count,2)]
+irtb[, CustTrans := as.numeric(CustTrans)]
 
 #create top box var
 ir[RETURN==5, returnTB := 1]; ir[RETURN<=4&RETURN>=1, returnTB := 0]
@@ -58,17 +66,17 @@ t.test(ir[returnTB2==0, returnin7days],ir[returnTB2==1, returnin7days])
 t.test(ir[returnTB==0, returnin1day],ir[returnTB==1, returnin1day])
 
 #melt data
-irtb <- irtb[,.(FSCL_YR_NUM,FSCL_WK_IN_YR_NUM,TB_SCORE,TB2_SCORE)]
-irtb <- melt(irtb, id=c("FSCL_YR_NUM","FSCL_WK_IN_YR_NUM"))
+irtbm <- irtb[,.(FSCL_YR_NUM,FSCL_WK_IN_YR_NUM,TB_SCORE,TB2_SCORE)]
+irtbm <- melt(irtbm, id=c("FSCL_YR_NUM","FSCL_WK_IN_YR_NUM"))
 
 #create an x-variable
-irtb[, fyfw := paste0(FSCL_YR_NUM,".",str_pad(irtb[,FSCL_WK_IN_YR_NUM],2,pad="0"))]
+irtbm[, fyfw := paste0(FSCL_YR_NUM,".",str_pad(irtbm[,FSCL_WK_IN_YR_NUM],2,pad="0"))]
 
 #set up line chart
-pdata <- irtb
-px <- irtb[, fyfw]
-py <- irtb[, value]
-groupvar <- irtb[, variable]
+pdata <- irtbm
+px <- irtbm[, fyfw]
+py <- irtbm[, value]
+groupvar <- irtbm[, variable]
 #set labels
 xlabel <- "Time"
 ylabel <- "Score (%)"
@@ -80,10 +88,60 @@ llabels <- c("Top Box (5 out of 5)","Top 2 Box (4+ out of 5)")
 #line chart
 plot2 <- ggplot() +
   geom_line(data=pdata, aes(x=factor(px), y=py, group=factor(groupvar), colour=factor(groupvar))) + 
-  xlab(xlabel) + ylab(ylabel) + theme_economist() +
+  xlab(xlabel) + ylab(ylabel) + theme_economist_white(gray_bg = FALSE) +
   scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
   scale_x_discrete(breaks = px[seq(1, length(px), by = 4)]) +
   guides(colour = guide_legend(override.aes = list(size = 7))) + 
   theme(axis.text.x = element_text(size = 7, angle = 90, hjust = 1)) +
   ggtitle(tlabel)
 print(plot2)
+
+#merge together
+cor.test(irtb[,TB_SCORE],irtb[,tsd])
+cor.test(irtb[,TB2_SCORE],irtb[,tsd])
+cor.test(irtb[,TB_SCORE],irtb[,CustTrans])
+cor.test(irtb[,TB2_SCORE],irtb[,CustTrans])
+
+#melt data
+irsm <- irtb[,.(FSCL_YR_NUM,FSCL_WK_IN_YR_NUM,CustTrans,tsd)]
+# irsm <- melt(irsm, id=c("FSCL_YR_NUM","FSCL_WK_IN_YR_NUM"))
+
+#create an x-variable
+irsm[, fyfw := paste0(FSCL_YR_NUM,".",str_pad(irsm[,FSCL_WK_IN_YR_NUM],2,pad="0"))]
+
+#set up line chart
+pdata <- irsm
+px <- irsm[, fyfw]
+py <- irsm[, CustTrans]
+#set labels
+xlabel <- "Time"
+ylabel <- "Transactions"
+tlabel <- "Customer Transactions"
+#line chart
+plot1 <- ggplot() +
+  geom_line(data=pdata, aes(x=factor(px), y=py, group = 1)) + 
+  xlab(xlabel) + ylab(ylabel) + theme_economist_white(gray_bg = FALSE) +
+  scale_x_discrete(breaks = px[seq(1, length(px), by = 4)]) +
+  scale_y_continuous(limits=c(0,55000000), breaks = scales::pretty_breaks(n = 5), labels = comma) +
+  theme(axis.text.x = element_text(size = 7, angle = 90, hjust = 1)) +
+  ggtitle(tlabel)
+print(plot1)
+
+#set up line chart
+pdata <- irsm
+px <- irsm[, fyfw]
+py <- irsm[, tsd]
+#set labels
+xlabel <- "Time"
+ylabel <- "TSDs"
+tlabel <- "TSDs"
+#line chart
+plot1 <- ggplot() +
+  geom_line(data=pdata, aes(x=factor(px), y=py, group = 1)) + 
+  xlab(xlabel) + ylab(ylabel) + theme_economist_white(gray_bg = FALSE) +
+  scale_x_discrete(breaks = px[seq(1, length(px), by = 4)]) +
+  scale_y_continuous(limits=c(0,1000), breaks = scales::pretty_breaks(n = 5), labels = comma) +
+  theme(axis.text.x = element_text(size = 7, angle = 90, hjust = 1)) +
+  ggtitle(tlabel)
+print(plot1)
+
