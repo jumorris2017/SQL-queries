@@ -8,6 +8,7 @@
         --, ca.FSCL_PER_IN_YR_NUM
         , org.OWNR_TYPE_CD
         , org.CNTRY_CD
+        , org.DRIVE_THRU_IND
         --, f.STORE_NUMBER
         , SUM(f.NET_DISCOUNTED_SALES_AMT) "Sales"
         , SUM(f.NET_DISCOUNTED_SALES_LY_AMT) "LYSales"
@@ -21,7 +22,7 @@
         INNER JOIN APPDWH.ADT_STORE org
             ON f.STORE_NUMBER = org.STORE_NUM
             AND org.OWNR_TYPE_CD IN ('CO')
-            AND org.CNTRY_CD IN ('US','CA')
+            AND org.CNTRY_CD IN ('US')
         
         INNER JOIN APPDWH.ADT_CAL ca
             ON f.BUSINESS_DATE = ca.CAL_DT
@@ -41,6 +42,10 @@
     --, ca.FSCL_PER_IN_YR_NUM
     , org.OWNR_TYPE_CD
     , org.CNTRY_CD
+    , org.DRIVE_THRU_IND
+
+
+select * from APPDWH.ADT_STORE org
 
 /*  
 --active store day count

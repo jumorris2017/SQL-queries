@@ -148,10 +148,17 @@ summary(lm(RETURN ~ Q2_2 + Q2_1 + Q2_3 +
            data=pce[OWNR_TYPE_CD=='CO']))
 
 #ALL STORES: 
+#CAFE
 Regression(VISITS_POST60D ~ Q2_2 + Q2_1 + Q2_3 + 
              Q2_4 + Q2_5 + Q2_6 + Q2_7,
            data=pce[DRIVE_THRU_IND==0],
            output = "Relative Importance Analysis")
+#DT
+Regression(VISITS_POST60D ~ Q2_2 + Q2_1 + Q2_3 + 
+             Q2_4 + Q2_5 + Q2_6 + Q2_7,
+           data=pce[DRIVE_THRU_IND==1],
+           output = "Relative Importance Analysis")
+
 #CO
 Regression(VISITS_POST60D ~ Q2_2 + Q2_1 + Q2_3 + 
              Q2_4 + Q2_5 + Q2_6 + Q2_7,
@@ -195,10 +202,8 @@ Regression(VISITS_POST60D ~ Q2_2 + Q2_1 + Q2_3 +
            data=pce[STORE_LOC_TYPE=="SCHOOL"],
            output = "Relative Importance Analysis")
 
-
-temp <- pce[, list(VISITS_POST60D = mean(VISITS_POST60D,na.rm=T)),
-    by=c("STORE_LOC_TYPE")]
-
+# temp <- pce[, list(VISITS_POST60D = mean(VISITS_POST60D,na.rm=T)),
+#     by=c("STORE_LOC_TYPE")]
 
 #segments
 Regression(VISITS_POST60D ~ Q2_2 + Q2_1 + Q2_3 + 
