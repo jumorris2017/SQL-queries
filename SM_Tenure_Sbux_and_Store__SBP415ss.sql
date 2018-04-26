@@ -54,5 +54,7 @@ INNER JOIN PDW_Bulk.PRODM.Company_History ch
 		ON ojh.Personnel_Number = ch.Personnel_Number
 			AND CONVERT(date, GETDATE()) BETWEEN ch.Start_Date AND ch.End_Date
 
-WHERE ojh.Job_Key = '50000117'  -- Store Managers
-  AND CONVERT(date, GETDATE()) BETWEEN ojh.Start_Date AND ojh.End_Date 
+WHERE CONVERT(date, GETDATE()) BETWEEN ojh.Start_Date AND ojh.End_Date 
+  AND ojh.Job_Key = '50000117'  -- Store Managers
+  --AND sbo.StoreNumNum IN (22432,5265,7908,17331,3296,267,113,412)
+

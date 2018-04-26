@@ -46,15 +46,39 @@ ir[VISITS_POST7D>=1, returnin7days := 1]; ir[VISITS_POST7D==0, returnin7days := 
 #create indicator for actual returns in 1 day
 ir[VISITS_POST1D>=1, returnin1day := 1]; ir[VISITS_POST1D==0, returnin1day := 0]
 
+#create indicator for actual returns; EXCLUDING lesser returns
+#actual returns in 30 days #excluding returns in 7 days and 1 day
+ir[, returnin30days_excl := 0]
+ir[returnin7days==0&returnin1day==0&returnin30days==1, returnin30days_excl := 1]
+#actual returns in 7 days #excluding returns in 1 day
+ir[, returnin7days_excl := 0]
+ir[returnin1day==0&returnin7days==1, returnin7days_excl := 1]
+
 #remove outliers... (71 people visited more than 200x in 60 days)
 ir <- ir[VISITS_POST60D<=200]
 
+#test accuracy
+#mututally exclusive
+ir[RETURN==5, mean(returnin1day)]
+ir[RETURN==4, mean(returnin7days_excl)]
+ir[RETURN==3, mean(returnin30days_excl)]
+#combined top boxes
+ir[RETURN==5, mean(returnin1day)]
+ir[RETURN>=4, mean(returnin7days)]
+ir[RETURN>=3, mean(returnin30days)]
+
 #t.tests
 #60 days: number of visits
+ir[RETURN==5, mean(VISITS_POST60D,na.rm=T)]
+ir[RETURN==4, mean(VISITS_POST60D,na.rm=T)]
+ir[RETURN==3, mean(VISITS_POST60D,na.rm=T)]
 t.test(ir[returnTB==0, VISITS_POST60D],ir[returnTB==1, VISITS_POST60D])
 t.test(ir[returnTB2==0, VISITS_POST60D],ir[returnTB2==1, VISITS_POST60D])
 t.test(ir[returnTB3==0, VISITS_POST60D],ir[returnTB3==1, VISITS_POST60D])
 #7 days: number of visits
+ir[RETURN==5, mean(VISITS_POST7D,na.rm=T)]
+ir[RETURN==4, mean(VISITS_POST7D,na.rm=T)]
+ir[RETURN==3, mean(VISITS_POST7D,na.rm=T)]
 t.test(ir[returnTB==0, VISITS_POST7D],ir[returnTB==1, VISITS_POST7D])
 t.test(ir[returnTB2==0, VISITS_POST7D],ir[returnTB2==1, VISITS_POST7D])
 t.test(ir[returnTB3==0, VISITS_POST7D],ir[returnTB3==1, VISITS_POST7D])
