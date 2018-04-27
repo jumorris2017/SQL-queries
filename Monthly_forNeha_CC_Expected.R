@@ -13,7 +13,7 @@ data_dir_J <- "O:/CoOp/CoOp194_PROReportng&OM/Julie"
 #load data
 ce <- fread(paste0(data_dir_J,"/FP5-6FY18_CC-Speed_StoreLevel.csv"))
 hs <- fread(paste0(data_dir_J,"/FP5-6FY18_homestore.csv"))
-tsd <- fread(paste0(data_dir_J,"/FP5-6FY18_TSD.csv"))
+tsd <- fread(paste0(data_dir_J,"/FP5-6FY18_TSD_v2.csv"))
 
 #aggregate for rolling-2
 ce <- ce[, list(CC_RESPONSE_TOTAL = sum(CC_RESPONSE_TOTAL,na.rm=T),
@@ -44,6 +44,22 @@ cedt <- Reduce(function(x, y) {merge(x, y,
                                      all = TRUE)}, list(ce,hs,tsd))
 #na omit region
 cedt <- na.omit(cedt,cols=c("CC_TB_SCORE","SP_TB_SCORE","hspct","tsd","RGN_ORG_LVL_DESCR"))
+
+#testing for NEHA
+cedt <- cedt[STORE_NUM %in% c(3333,
+                              5296,
+                              6499,
+                              7307,
+                              7370,
+                              8228,
+                              11737,
+                              13439,
+                              26929,
+                              8123,
+                              8222,
+                              8292,
+                              8955,
+                              10185)]
 
 #run models split by region - CC
 newData <- cedt[, .(STORE_NUM,RGN_ORG_LVL_DESCR,hspct,tsd)]
@@ -77,7 +93,7 @@ write.csv(cedt,file=paste0(data_dir,"/P6_2mroll_FY18_CC_observed-expected_StoreL
 #load data
 ce <- fread(paste0(data_dir_J,"/FP5-6FY18_CC-Speed_StoreLevel.csv"))
 hs <- fread(paste0(data_dir_J,"/FP5-6FY18_homestore.csv"))
-tsd <- fread(paste0(data_dir_J,"/FP5-6FY18_TSD.csv"))
+tsd <- fread(paste0(data_dir_J,"/FP5-6FY18_TSD_v2.csv"))
 
 #restrict to just March
 ce <- ce[FSCL_PER_IN_YR_NUM==6]

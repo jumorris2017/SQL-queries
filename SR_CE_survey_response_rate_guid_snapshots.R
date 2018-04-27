@@ -5,11 +5,12 @@
 library(data.table)
 library(lubridate)
 library(ggplot2)
+library(stringr)
+library(dplyr)
 
 #load data
 data_dir <- "O:/CoOp/CoOp194_PROReportng&OM/Julie"
 cer <- fread(paste0(data_dir,"/total_ce_resp_by_storeandmonth.csv"))
-
 
 #drop FY 2014 and latest month
 cer <- cer[!(FSCL_YR_NUM==2014|(FSCL_YR_NUM==2018&FSCL_PER_IN_YR_NUM==7))]
@@ -49,11 +50,6 @@ data_dir <- "O:/CoOp/CoOp194_PROReportng&OM/Julie"
 sr <- fread(paste0(data_dir,"/ce_survey_guids_p6fy16and17_p12fy17and18.csv"))
 ex <- fread(paste0(data_dir,"/ce_survey_guids_experian.csv"))
 ten <- fread(paste0(data_dir,"/ce_survey_guids_sr_tenure.csv"))
-
-#SR COMPARISON
-sr_sr <- fread(paste0(data_dir,"/sr_guids_p6fy16and17_p12fy17and18.csv"))
-sr_ex <- fread(paste0(data_dir,"/sr_guids_experian.csv"))
-sr_ten <- fread(paste0(data_dir,"/sr_guids_sr_tenure.csv"))
 
 #merge together
 srfull <- Reduce(function(x, y) {merge(x, y, 
@@ -108,6 +104,23 @@ Mode <- function(x) {
   ux[which.max(tabulate(match(x, ux)))]
 }
 
+#likely or extremely likely bach or grad degree
+srfull[EDUCATION_MODEL %in% c(13,14,53,54), likelycolgrad := 1]
+srfull[EDUCATION_MODEL %in% c(11,12,15,51,52,55), likelycolgrad := 0]
+na.omit(srfull[fyfp==2016.12,(.N/nrow(na.omit(srfull[fyfp==2016.12])))*100,by="likelycolgrad"])
+na.omit(srfull[fyfp==2017.06,(.N/nrow(na.omit(srfull[fyfp==2017.06])))*100,by="likelycolgrad"])
+na.omit(srfull[fyfp==2017.12,(.N/nrow(na.omit(srfull[fyfp==2017.12])))*100,by="likelycolgrad"])
+na.omit(srfull[fyfp==2018.06,(.N/nrow(na.omit(srfull[fyfp==2018.06])))*100,by="likelycolgrad"])
+
+#likely or extremely likely married
+srfull[MARITAL_STATUS %in% c("1M","5M"), likelymarried := 1]
+srfull[MARITAL_STATUS %in% c("5S"), likelymarried := 0]
+na.omit(srfull[fyfp==2016.12,(.N/nrow(na.omit(srfull[fyfp==2016.12])))*100,by="likelymarried"])
+na.omit(srfull[fyfp==2017.06,(.N/nrow(na.omit(srfull[fyfp==2017.06])))*100,by="likelymarried"])
+na.omit(srfull[fyfp==2017.12,(.N/nrow(na.omit(srfull[fyfp==2017.12])))*100,by="likelymarried"])
+na.omit(srfull[fyfp==2018.06,(.N/nrow(na.omit(srfull[fyfp==2018.06])))*100,by="likelymarried"])
+
+
 #calculate percent in modal category
 na.omit(srfull[fyfp==2016.12,(.N/nrow(na.omit(srfull[fyfp==2016.12])))*100,by="EDUCATION_MODEL"])
 na.omit(srfull[fyfp==2017.06,(.N/nrow(na.omit(srfull[fyfp==2017.06])))*100,by="EDUCATION_MODEL"])
@@ -149,3 +162,4 @@ Mode(na.omit(srfull[fyfp==2016.12,MARITAL_STATUS]))
 Mode(na.omit(srfull[fyfp==2017.06,MARITAL_STATUS]))
 Mode(na.omit(srfull[fyfp==2017.12,MARITAL_STATUS]))
 Mode(na.omit(srfull[fyfp==2018.06,MARITAL_STATUS]))
+
