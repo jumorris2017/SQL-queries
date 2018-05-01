@@ -40,3 +40,7 @@ ORDER BY
       ce.STORE_NUM
       ,c.FSCL_YR_NUM
       ,c.FSCL_PER_IN_YR_NUM
+
+
+select * from APPDWH.ADT_STORE org RGN_DESCR
+select * from APPBUS.DFT_INTL_STORE_DAY_VW 

@@ -6,6 +6,7 @@ library(ggplot2)
 library(ggthemes)
 library(ppcor)
 library(scales)
+library(stringr)
 
 #load data
 data_dir <- "O:/CoOp/CoOp194_PROReportng&OM/Julie"
@@ -18,12 +19,15 @@ ir1 <- fread(paste0(data_dir,"/intent_to_return_visits_1day.csv"))
 ir1 <- ir1[, .(GUID_USER_ID,SPEND_POST1D,VISITS_POST1D)]
 #TB versus TB2
 irtb <- fread(paste0(data_dir,"/intent_to_return_TBvTB2.csv"))
+#response counts
+irr <- fread(paste0(data_dir,"/intent_to_return_resp.csv"))
+irr[, QSTN_ID := NULL]
 #Sales and TSDs
 irs <- fread(paste0(data_dir,"/intent_to_return_sales.csv"))
 
 #merge together
 ir <- Reduce(function(x, y) {merge(x, y, by=c("GUID_USER_ID"), all = TRUE)}, list(ir60,ir30,ir7,ir1))
-irtb <- Reduce(function(x, y) {merge(x, y, by=c("FSCL_YR_NUM","FSCL_WK_IN_YR_NUM"), all = TRUE)}, list(irtb,irs))
+irtb <- Reduce(function(x, y) {merge(x, y, by=c("FSCL_YR_NUM","FSCL_WK_IN_YR_NUM"), all = TRUE)}, list(irtb,irr,irs))
 irtb <- irtb[!(FSCL_YR_NUM==2018&FSCL_WK_IN_YR_NUM==29)]
 
 #sales data 
@@ -48,6 +52,12 @@ ir[VISITS_POST1D>=1, returnin1day := 1]; ir[VISITS_POST1D==0, returnin1day := 0]
 
 #create indicator for actual returns; EXCLUDING lesser returns
 #actual returns in 30 days #excluding returns in 7 days and 1 day
+ir[, returnnever_excl := 0]
+ir[VISITS_POST60D==0, returnnever_excl := 1]
+#actual returns in 60 days #excluding returns in 30 days, 7 days and 1 day
+ir[, returnin60days_excl := 0]
+ir[returnin7days==0&returnin1day==0&returnin30days==0&VISITS_POST60D>=1, returnin60days_excl := 1]
+#actual returns in 30 days #excluding returns in 7 days and 1 day
 ir[, returnin30days_excl := 0]
 ir[returnin7days==0&returnin1day==0&returnin30days==1, returnin30days_excl := 1]
 #actual returns in 7 days #excluding returns in 1 day
@@ -62,26 +72,43 @@ ir <- ir[VISITS_POST60D<=200]
 ir[RETURN==5, mean(returnin1day)]
 ir[RETURN==4, mean(returnin7days_excl)]
 ir[RETURN==3, mean(returnin30days_excl)]
-#combined top boxes
-ir[RETURN==5, mean(returnin1day)]
-ir[RETURN>=4, mean(returnin7days)]
-ir[RETURN>=3, mean(returnin30days)]
+ir[RETURN==2, mean(returnin60days_excl)]
+ir[RETURN==1, mean(returnnever_excl)]
+
+# #combined top boxes
+# ir[RETURN==5, mean(returnin1day)]
+# ir[RETURN>=4, mean(returnin7days)]
+# ir[RETURN>=3, mean(returnin30days)]
 
 #t.tests
 #60 days: number of visits
 ir[RETURN==5, mean(VISITS_POST60D,na.rm=T)]
 ir[RETURN==4, mean(VISITS_POST60D,na.rm=T)]
 ir[RETURN==3, mean(VISITS_POST60D,na.rm=T)]
+ir[RETURN==2, mean(VISITS_POST60D,na.rm=T)]
+ir[RETURN==1, mean(VISITS_POST60D,na.rm=T)]
 t.test(ir[returnTB==0, VISITS_POST60D],ir[returnTB==1, VISITS_POST60D])
 t.test(ir[returnTB2==0, VISITS_POST60D],ir[returnTB2==1, VISITS_POST60D])
-t.test(ir[returnTB3==0, VISITS_POST60D],ir[returnTB3==1, VISITS_POST60D])
+# t.test(ir[returnTB3==0, VISITS_POST60D],ir[returnTB3==1, VISITS_POST60D])
+#30 days: number of visits
+ir[RETURN==5, mean(VISITS_POST30D,na.rm=T)]
+ir[RETURN==4, mean(VISITS_POST30D,na.rm=T)]
+ir[RETURN==3, mean(VISITS_POST30D,na.rm=T)]
+ir[RETURN==2, mean(VISITS_POST30D,na.rm=T)]
+ir[RETURN==1, mean(VISITS_POST30D,na.rm=T)]
+t.test(ir[returnTB==0, VISITS_POST30D],ir[returnTB==1, VISITS_POST30D])
+t.test(ir[returnTB2==0, VISITS_POST30D],ir[returnTB2==1, VISITS_POST30D])
 #7 days: number of visits
 ir[RETURN==5, mean(VISITS_POST7D,na.rm=T)]
 ir[RETURN==4, mean(VISITS_POST7D,na.rm=T)]
 ir[RETURN==3, mean(VISITS_POST7D,na.rm=T)]
+ir[RETURN==2, mean(VISITS_POST7D,na.rm=T)]
+ir[RETURN==1, mean(VISITS_POST7D,na.rm=T)]
 t.test(ir[returnTB==0, VISITS_POST7D],ir[returnTB==1, VISITS_POST7D])
 t.test(ir[returnTB2==0, VISITS_POST7D],ir[returnTB2==1, VISITS_POST7D])
-t.test(ir[returnTB3==0, VISITS_POST7D],ir[returnTB3==1, VISITS_POST7D])
+# t.test(ir[returnTB3==0, VISITS_POST7D],ir[returnTB3==1, VISITS_POST7D])
+
+
 #30 days: binary visitation
 t.test(ir[returnTB3==0, returnin30days],ir[returnTB3==1, returnin30days])
 #7 days: binary visitation
@@ -119,6 +146,50 @@ plot2 <- ggplot() +
   theme(axis.text.x = element_text(size = 7, angle = 90, hjust = 1)) +
   ggtitle(tlabel)
 print(plot2)
+
+#set up line chart
+pdata <- irtbm[variable=="TB_SCORE"]
+px <- irtbm[variable=="TB_SCORE", fyfw]
+py <- irtbm[variable=="TB_SCORE", value]
+#set labels
+xlabel <- "Time"
+ylabel <- "Score (%)"
+tlabel <- "Intent to Return\nTop Box Score"
+
+#line chart
+plot2 <- ggplot() +
+  geom_line(data=pdata, aes(x=factor(px), y=py, group=1)) + 
+  xlab(xlabel) + ylab(ylabel) + theme_economist_white(gray_bg = FALSE) +
+  #scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
+  scale_y_continuous(limits=c(pdata[,min(py)*.85],pdata[,max(py)*1.05])) +
+  scale_x_discrete(breaks = px[seq(1, length(px), by = 4)]) +
+  guides(colour = guide_legend(override.aes = list(size = 7))) + 
+  theme(axis.text.x = element_text(size = 7, angle = 90, hjust = 1)) +
+  ggtitle(tlabel)
+print(plot2)
+
+#set up line chart
+pdata <- irtbm[variable=="TB2_SCORE"]
+px <- irtbm[variable=="TB2_SCORE", fyfw]
+py <- irtbm[variable=="TB2_SCORE", value]
+#set labels
+xlabel <- "Time"
+ylabel <- "Score (%)"
+tlabel <- "Intent to Return\nTop 2 Box Score"
+
+#line chart
+plot2 <- ggplot() +
+  geom_line(data=pdata, aes(x=factor(px), y=py, group=1)) + 
+  xlab(xlabel) + ylab(ylabel) + theme_economist_white(gray_bg = FALSE) +
+  #scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
+  scale_y_continuous(limits=c(pdata[,min(py)*.85],pdata[,max(py)*1.05])) +
+  scale_x_discrete(breaks = px[seq(1, length(px), by = 4)]) +
+  guides(colour = guide_legend(override.aes = list(size = 7))) + 
+  theme(axis.text.x = element_text(size = 7, angle = 90, hjust = 1)) +
+  ggtitle(tlabel)
+print(plot2)
+
+
 
 #merge together
 cor.test(irtb[,TB_SCORE],irtb[,tsd])
@@ -164,8 +235,43 @@ plot1 <- ggplot() +
   geom_line(data=pdata, aes(x=factor(px), y=py, group = 1)) + 
   xlab(xlabel) + ylab(ylabel) + theme_economist_white(gray_bg = FALSE) +
   scale_x_discrete(breaks = px[seq(1, length(px), by = 4)]) +
-  scale_y_continuous(limits=c(0,1000), breaks = scales::pretty_breaks(n = 5), labels = comma) +
+  scale_y_continuous(limits=c(pdata[,min(py)*.85],pdata[,max(py)*1.1])) +
+  #scale_y_continuous(limits=c(0,1000), breaks = scales::pretty_breaks(n = 5), labels = comma) +
   theme(axis.text.x = element_text(size = 7, angle = 90, hjust = 1)) +
   ggtitle(tlabel)
 print(plot1)
+
+
+
+#make plot of different survey responses
+#melt data
+irrm <- irtb[,.(FSCL_YR_NUM,FSCL_WK_IN_YR_NUM,RSP_SCORE5,RSP_SCORE4,RSP_SCORE3,RSP_SCORE2,RSP_SCORE1)]
+irrm <- melt(irrm, id=c("FSCL_YR_NUM","FSCL_WK_IN_YR_NUM"))
+
+#create an x-variable
+irrm[, fyfw := paste0(FSCL_YR_NUM,".",str_pad(irtbm[,FSCL_WK_IN_YR_NUM],2,pad="0"))]
+
+#set up line chart
+pdata <- irrm
+px <- irrm[, fyfw]
+py <- irrm[, value]
+groupvar <- irrm[, variable]
+#set labels
+xlabel <- "Time"
+ylabel <- "Percent of CE Responses (%)"
+tlabel <- "Intent to Return\nDistribution of Responses"
+#manual legend labels
+lname <- "Response"
+llabels <- c("5","4","3","2","1") 
+
+#line chart
+plot2 <- ggplot() +
+  geom_line(data=pdata, size=1, aes(x=factor(px), y=py, group=factor(groupvar), colour=factor(groupvar))) + 
+  xlab(xlabel) + ylab(ylabel) + theme_economist_white(gray_bg = FALSE) +
+  scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
+  scale_x_discrete(breaks = px[seq(1, length(px)/5, by = 4)]) +
+  guides(colour = guide_legend(override.aes = list(size = 7))) + 
+  theme(axis.text.x = element_text(size = 7, angle = 90, hjust = 1)) +
+  ggtitle(tlabel)
+print(plot2)
 
