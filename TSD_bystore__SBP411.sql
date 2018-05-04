@@ -8,9 +8,10 @@
         , org.RGN_ORG_LVL_ID
         , org.RGN_ORG_LVL_DESCR
     FROM APPBUS.DFT_INTL_STORE_DAY_VW f      
-        INNER JOIN APPDWH.DDM_RETAIL_ORG_STORE_DIST org
-            ON f.STORE_NUMBER = org.STORE_NUM
-            AND org.DIV_ORG_LVL_ID IN (3,6,106)  -- US CO stores
+        INNER JOIN APPDWH.ADT_STORE org
+          ON f.STORE_NUMBER = org.STORE_NUM
+          AND org.OWNR_TYPE_CD IN ('CO','LS')
+          AND org.CNTRY_CD IN ('US')
         INNER JOIN APPDWH.ADT_CAL ca
             ON f.BUSINESS_DATE = ca.CAL_DT
             AND ca.FSCL_YR_NUM = 2018 AND ca.FSCL_PER_IN_YR_NUM = 5
