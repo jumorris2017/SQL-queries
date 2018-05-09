@@ -163,3 +163,43 @@ Mode(na.omit(srfull[fyfp==2017.06,MARITAL_STATUS]))
 Mode(na.omit(srfull[fyfp==2017.12,MARITAL_STATUS]))
 Mode(na.omit(srfull[fyfp==2018.06,MARITAL_STATUS]))
 
+
+#create row numbers
+cer[, ID := .I]
+#breaks & labels
+monthval <- c(1:12)
+monthnames <- c("Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","June","July","Aug","Sep")
+cer[, FSCL_PER_NM :=  plyr::mapvalues(cer[, FSCL_PER_IN_YR_NUM], from = monthval, to = monthnames)]
+xlabels <- cer[, FSCL_PER_NM]
+#set up line chart
+pdata <- cer
+px <- cer[, fyfp]
+py <- cer[, avg_resp]
+groupvar <- cer[, COUNTRY_CD]
+#set labels
+xlabel <- "Fiscal Period"
+ylabel <- "Average Responses (#)"
+tlabel <- "CE Survey Responses by Store"
+sublabel <- "Average monthly responses received at the store level"
+caption <- "Note: Observed positive spikes occur during\nfiscal periods containing 5 weeks of data"
+#manual legend labels
+lname <- "Country"
+llabels <- c("Canada","United States") 
+#line chart
+plot2 <- ggplot() +
+  geom_line(data=pdata, aes(x=factor(px), y=py, group=factor(groupvar), colour=factor(groupvar))) + 
+  xlab(xlabel) + ylab(ylabel) + theme_economist_white(gray_bg = FALSE) +
+  scale_y_continuous(limits=c(0,155)) +
+  scale_x_discrete(labels = xlabels) +
+  scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
+  guides(colour = guide_legend(override.aes = list(size = 7))) + 
+  theme(axis.text.x = element_text(size=9, angle=90, hjust=1, vjust=.75)) +
+  geom_vline(aes(xintercept = 1)) + annotate(geom = "text", x=1, y=10, hjust=0, vjust=1, label = "2015", angle=90, size=4) +
+  geom_vline(aes(xintercept = 13)) + annotate(geom = "text", x=13, y=10, hjust=0, vjust=1, label = "2016", angle=90, size=4) +
+  geom_vline(aes(xintercept = 25)) +annotate(geom = "text", x=25, y=10, hjust=0, vjust=1, label = "2017", angle=90, size=4) +
+  geom_vline(aes(xintercept = 37)) +annotate(geom = "text", x=37, y=10, hjust=0, vjust=1, label = "2018", angle=90, size=4) +
+  ggtitle(tlabel) + labs(subtitle=sublabel,caption=caption)
+print(plot2)
+
+
+

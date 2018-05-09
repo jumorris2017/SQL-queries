@@ -275,3 +275,56 @@ plot2 <- ggplot() +
   ggtitle(tlabel)
 print(plot2)
 
+
+#change in response scores by specific values
+irtb2 <- fread(paste0(data_dir,"/intent_to_return_RespNums.csv"))
+
+#calculate percent
+irtb2[, (grep("TOTAL",names(irtb2),value=T)) := lapply(.SD, function(x) x*100/RSPNS_COUNT),
+     .SDcols=c(grep("TOTAL",names(irtb2),value=T))]
+
+#melt data
+irtb2 <- irtb2[,.(FSCL_YR_NUM,FSCL_PER_NM,FSCL_WK_IN_YR_NUM,TOTAL5,TOTAL4,TOTAL3,TOTAL2,TOTAL1)]
+irtb2 <- melt(irtb2, id=c("FSCL_YR_NUM","FSCL_PER_NM","FSCL_WK_IN_YR_NUM"))
+
+#create an x-variable
+irtb2[, fyfw := paste0(FSCL_YR_NUM,".",str_pad(irtb2[,FSCL_WK_IN_YR_NUM],2,pad="0"))]
+
+#create row numbers
+irtb2[, ID := .I]
+
+#set up line chart
+pdata <- irtb2
+px <- irtb2[, fyfw]
+py <- irtb2[, value]
+groupvar <- irtb2[, variable]
+#breaks & labels
+irtb2[, fyfp := paste0(FSCL_YR_NUM,".",str_pad(irtb2[,FSCL_PER_NM],2,pad="0"))]
+temp <- irtb2[!duplicated(irtb2$fyfp)&variable=="TOTAL5",]
+pxlabels <- temp[, fyfw]
+xlabels <- temp[, FSCL_PER_NM]
+#set labels
+xlabel <- ""
+ylabel <- "Percent of CE Responses (%)"
+tlabel <- "Intent to Return"
+sublabel <- "Weekly Distribution of Response Scores from Customer Experience Survey"
+caption <- "U.S. Company-Operated Stores\n5 = Today or tomorrow; 4 = Within the next week; 3 = Within the next month; 2 = More than a month from now; 1 = Never"
+#manual legend labels
+lname <- "Response Score"
+llabels <- c("5","4","3","2","1") 
+
+#line chart
+plot2 <- ggplot() +
+  geom_line(data=pdata, size=1, aes(x=factor(px), y=py, group=factor(groupvar), colour=factor(groupvar))) + 
+  xlab(xlabel) + ylab(ylabel) + theme_economist_white(gray_bg = FALSE) +
+  scale_colour_discrete(name=lname, labels=llabels, guide=guide_legend(order=1)) +
+  scale_x_discrete(labels = xlabels, breaks = pxlabels[seq(1, length(pxlabels), by = 1)]) +
+  geom_vline(aes(xintercept = 10)) + annotate(geom = "text", x=12, y=12, hjust=0, vjust=0.2, label = "2016", angle=90, size=4) +
+  geom_vline(aes(xintercept = 63)) +annotate(geom = "text", x=65, y=12, hjust=0, vjust=0.2, label = "2017", angle=90, size=4) +
+  geom_vline(aes(xintercept = 115)) +annotate(geom = "text", x=117, y=12, hjust=0, vjust=0.2, label = "2018", angle=90, size=4) +
+  guides(colour = guide_legend(override.aes = list(size = 7))) + 
+  theme(axis.text.x = element_text(size=9, angle=90, hjust=1, vjust=.75)) +
+  ggtitle(tlabel,subtitle=sublabel) + labs(caption=caption)
+print(plot2)
+
+
