@@ -15,8 +15,7 @@ FROM APPCA.F_CARD f
 WHERE f.SVC_TRANS_CTGY = 'Redemption'
   AND f.FSCL_YR_NUM = 2018
   AND f.FSCL_WK_IN_YR_NUM BETWEEN 14 AND 17  --UPDATE WEEKS
-  AND f.SALES_CHNL_CD IN ('LS','ALTD','NYA')  -- not sure what ALTD is, but it's assocaited with a single MID for Albersons LS stores
-                                              -- same with NYA (not yet associated?), but is is used for at least one LS merchant
+  AND f.SALES_CHNL_CD IN ('LS','ALTD','NYA') 
   
 GROUP BY
    f.MRCHT_ID
@@ -44,4 +43,4 @@ LEFT JOIN (
     AND a.ALT_MRCHT_ID = b.ALT_MRCHT_ID
     
 ORDER BY a.MRCHT_ID, a.ALT_MRCHT_ID
-;
+

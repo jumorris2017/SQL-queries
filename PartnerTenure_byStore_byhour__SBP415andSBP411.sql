@@ -33,3 +33,5 @@ RIGHT JOIN (
   ) gls 
   
 ON prtnr.SAP_PRTNR_ID = gls.PRTNR_NUM
+
+

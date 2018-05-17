@@ -21,6 +21,7 @@ from
           
         where l.shift_role_id in (101,1,18) -- ops2, ops, keyholder
           and l.actual_hr_cnt > 0 --only times when someone actually worked 
+          --and t.half_hr_sid >= 80000 and t.half_hr_sid <= 100000 - PEAK
         group by l.store_num
         ,l.bus_dt
         ,t.half_hr_sid
@@ -42,10 +43,9 @@ inner join appdwh.adt_store o on o.store_num = a.store_num
       
 where a.bus_dt between  '27-nov-17' and '25-feb-18' -- PLEASE ADJUST DATE RANGE HERE
      --and a.store_num in (101) --for test
-     and o.zone_num in (3,6,8,106)
      and o.CNTRY_CD = 'US' 
      and o.ownr_type_CD = 'CO'
-     --and a.half_hr_sid >= 80000 and a.half_hr_sid <= 100000
+     --and a.half_hr_sid >= 80000 and a.half_hr_sid <= 100000 -PEAK
      
   group by a.store_num
   --,a.bus_dt

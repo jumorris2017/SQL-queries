@@ -5,12 +5,12 @@
         , SUM(f.ACTIVE_STORE_DAY_CNT) "day_count"
         , ca.FSCL_PER_IN_YR_NUM
         , org.STORE_NUM
-        , org.RGN_ORG_LVL_ID
-        , org.RGN_ORG_LVL_DESCR
+        --, org.RGN_ORG_LVL_ID
+        --, org.RGN_ORG_LVL_DESCR
     FROM APPBUS.DFT_INTL_STORE_DAY_VW f      
         INNER JOIN APPDWH.ADT_STORE org
           ON f.STORE_NUMBER = org.STORE_NUM
-          AND org.OWNR_TYPE_CD IN ('CO','LS')
+          AND org.OWNR_TYPE_CD IN ('CO') -- NO LS INFORMATION
           AND org.CNTRY_CD IN ('US')
         INNER JOIN APPDWH.ADT_CAL ca
             ON f.BUSINESS_DATE = ca.CAL_DT
@@ -22,5 +22,6 @@
     GROUP BY ca.FSCL_YR_NUM
     , ca.FSCL_PER_IN_YR_NUM
     , org.STORE_NUM
-    , org.RGN_ORG_LVL_ID
-    , org.RGN_ORG_LVL_DESCR
+    --, org.RGN_ORG_LVL_ID
+    --, org.RGN_ORG_LVL_DESCR
+    

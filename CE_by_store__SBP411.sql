@@ -84,7 +84,7 @@ FROM APPDWH.AFT_CV_SRVY_RSPNS ce
       
   INNER JOIN APPDWH.ADT_STORE org
       ON ce.STORE_NUM = org.STORE_NUM
-         AND org.OWNR_TYPE_CD IN ('CO','LS')
+         AND org.OWNR_TYPE_CD IN ('LS')
          AND org.CNTRY_CD IN ('US')
 
 WHERE ce.RSPNS_ID <> '9'  -- rspns_id = 9 for unanswered questions
