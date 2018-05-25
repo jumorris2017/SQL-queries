@@ -26,6 +26,7 @@ hf <- fread(paste0(data_dir,"/FP6_FY18_highfreq_prop_PEAK.csv"))
 sm <- fread(paste0(data_dir,"/sm_tenure_in_store.csv"))
 chanmix <- fread(paste0(data_dir,"/FP6_FY18_channel_mix_PEAK.csv"))
 uplh <- fread(paste0(data_dir,"/FP6_FY18_UPLH_PEAK.csv"))
+cons <- fread(paste0(data_dir,"/store_constraint_flag.csv"))
 
 #calculate home store percent
 hs[, hspct := round(HS_CUST_COUNT/ALL_CUST_COUNT,4)]
@@ -93,8 +94,8 @@ cedt <- Reduce(function(x, y) {merge(x, y, by=c("STORE_NUM"), all = TRUE)},
                list(ce,hs,prodmix,chanmix,hf,sr,sm,hpten,uplh,units))
 cedt <- na.omit(cedt, cols=c("STORE_NUM","RGN_ORG_LVL_DESCR"))
 
-#relative weights analysis -- library(flipRegression)
 #cafe
+#relative weights analysis -- library(flipRegression)
 Regression(sp_CAFE ~ hspct + 
              brewed_prp + 
              blended_prp +
@@ -105,7 +106,34 @@ Regression(sp_CAFE ~ hspct +
              avghrlyten_yrs + 
              UPLH +
              units_per_ticket +
-             price_per_ticket, data=cedt[RGN_ORG_LVL_DESCR=='PACIFIC NORTHWEST'],
+             price_per_ticket, data=cedt,
+           output = "Relative Importance Analysis")
+summary(lm(sp_CAFE ~ 
+             hspct + 
+             brewed_prp + 
+             blended_prp +
+             MOP_PRP +
+             hf10 +
+             SR_trans_prp +
+             sm_tenure_in_store + 
+             avghrlyten_yrs + 
+             UPLH +
+             units_per_ticket +
+             price_per_ticket, data=cedt))
+
+#OTW
+#relative weights analysis -- library(flipRegression)
+Regression(sp_OTW ~ hspct + 
+             brewed_prp + 
+             blended_prp +
+             MOP_PRP +
+             hf10 +
+             SR_trans_prp +
+             sm_tenure_in_store + 
+             avghrlyten_yrs + 
+             UPLH +
+             units_per_ticket +
+             price_per_ticket, data=cedt,
            output = "Relative Importance Analysis")
 summary(lm(sp_OTW ~ 
              hspct + 
@@ -120,3 +148,29 @@ summary(lm(sp_OTW ~
              units_per_ticket +
              price_per_ticket, data=cedt))
 
+#MOP
+#relative weights analysis -- library(flipRegression)
+Regression(sp_MOP ~ hspct + 
+             brewed_prp + 
+             blended_prp +
+             MOP_PRP +
+             hf10 +
+             SR_trans_prp +
+             sm_tenure_in_store + 
+             avghrlyten_yrs + 
+             UPLH +
+             units_per_ticket +
+             price_per_ticket, data=cedt,
+           output = "Relative Importance Analysis")
+summary(lm(sp_MOP ~ 
+             hspct + 
+             brewed_prp + 
+             blended_prp +
+             MOP_PRP +
+             hf10 +
+             SR_trans_prp +
+             sm_tenure_in_store + 
+             avghrlyten_yrs + 
+             UPLH +
+             units_per_ticket +
+             price_per_ticket, data=cedt))

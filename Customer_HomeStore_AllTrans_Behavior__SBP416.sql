@@ -1,0 +1,53 @@
+SELECT
+       T1.GUID_ID
+      ,T1.FSCL_YR_NUM
+      ,SUM(CASE WHEN T1.RNK_HS = 1 AND T1.N_TRANS>=3 
+         THEN T1.STORE_NUM 
+         ELSE NULL 
+       END) AS HOME_STORE
+      ,SUM(CASE WHEN T1.RNK_HS = 1 AND T1.N_TRANS>=3 
+         THEN T1.N_TRANS 
+         ELSE NULL 
+       END) AS HOME_STORE_VISITS
+      ,SUM(CASE WHEN T1.RNK_HS = 1 AND T1.N_TRANS>=3 
+         THEN T1.TOT_SPEND 
+         ELSE NULL 
+       END) AS HOME_STORE_SPEND
+      ,SUM(T1.N_TRANS) AS ALL_STORES_VISITS
+      ,SUM(T1.TOT_SPEND) AS ALL_STORES_SPEND
+    FROM(
+      --INNER QUERY - ALL GUIDS, STORES THEY VISITED, # TRANSACTIONS AT THOSE STORES AND TOTAL SPEND AT THOSE STORES
+      SELECT
+         POSH.GUID_ID
+        ,STR.STORE_NUM
+        ,ca.FSCL_YR_NUM
+        ,COUNT(DISTINCT POSH.TRANS_ID) AS N_TRANS
+        ,SUM(POSH.GROSS_REV_LCL_AMT) AS TOT_SPEND
+        --this ranks each store that the guid has visited by the number of transactions and spend
+        ,RANK() OVER(PARTITION BY POSH.GUID_ID, ca.FSCL_YR_NUM 
+                  ORDER BY -COUNT(DISTINCT POSH.TRANS_ID), 
+                           -SUM(POSH.GROSS_REV_LCL_AMT)
+                  ) 
+         AS RNK_HS
+      FROM APPCA.F_POS_HDR POSH
+      LEFT OUTER JOIN APPCA.D_STORE_VERS STR
+        ON POSH.STORE_VERS_KEY = STR.STORE_VERS_KEY
+      INNER JOIN APPCA.D_CAL ca
+        ON POSH.BUS_DT = ca.CAL_DT
+      WHERE STR.OWNR_TYPE_CD = 'CO'
+        AND STR.CNTRY_CD_2_DGT_ISO = 'US'
+        AND POSH.GROSS_REV_LCL_AMT > 0
+       AND ca.FSCL_YR_NUM IN (2017,2018)
+       AND ca.FSCL_WK_IN_YR_NUM IN (30,31,32,33)
+        
+      GROUP BY
+         POSH.GUID_ID
+        ,STR.STORE_NUM
+        ,ca.FSCL_YR_NUM
+
+    ) T1 --THIS IS THE LIST OF GUIDS AND THEIR HOMESTORE,SPEND ETC
+    WHERE T1.N_TRANS>=3
+    GROUP BY
+       T1.GUID_ID
+      ,T1.FSCL_YR_NUM
+    

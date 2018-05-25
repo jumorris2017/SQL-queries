@@ -1,8 +1,8 @@
 select a.store_num
       --,a.bus_dt
       --,a.half_hr_sid
-      ,sum(b.units) as tot_units
-      ,sum(a.total_hr_cnt) as tot_hours
+      --,sum(b.units) as tot_units
+      --,sum(a.total_hr_cnt) as tot_hours
       ,cast(sum(b.units)/sum(a.total_hr_cnt) as decimal(15,2)) as UPLH -- NOTE THIS IS TPLH BASED ON ONLY CUSTOMER UNITS
   
 from 
@@ -41,7 +41,8 @@ left join
 --c) this brings in the retail org hierarchy to filter off    
 inner join appdwh.adt_store o on o.store_num = a.store_num
       
-where a.bus_dt between  '27-nov-17' and '25-feb-18' -- PLEASE ADJUST DATE RANGE HERE
+where a.bus_dt between  '24-APR-18' and '21-MAY-18' -- PLEASE ADJUST DATE RANGE HERE
+     --and a.bus_dt between  '23-APR-18' and '20-MAY-18' -- PLEASE ADJUST DATE RANGE HERE
      --and a.store_num in (101) --for test
      and o.CNTRY_CD = 'US' 
      and o.ownr_type_CD = 'CO'

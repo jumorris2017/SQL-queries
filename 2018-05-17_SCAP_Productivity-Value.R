@@ -11,8 +11,7 @@ library(lubridate)
 
 #set folder directory
 data_dir <- "O:/CoOp/CoOp194_PROReportng&OM/Julie"
-scap <- fread(paste0(data_dir,"/PartnerFile20180401.csv"))
-setnames(scap,"PARTNERID","PRTNR_NUM")
+scap <- fread(paste0(data_dir,"/SCAP_PTF_20180524.csv"))
 store <- fread(paste0(data_dir,"/scap_partner_stores20180401.csv"))
 store[, MOSTREC := NULL]
 cc <- fread(paste0(data_dir,"/scap_cc_q2fy18.csv"))
@@ -20,37 +19,50 @@ cc[, c("FSCL_YR_NUM","FSCL_QTR_IN_YR_NUM") := NULL]
 tsd <- fread(paste0(data_dir,"/scap_tsd_q2fy18.csv"))
 tsd[, c("FSCL_YR_NUM","FSCL_QTR_IN_YR_NUM") := NULL]
 setnames(tsd,"STORE_NUMBER","STORE_NUM")
+uplh <- fread(paste0(data_dir,"/scap_uplh_q2fy18.csv"))
 
 #restrict
 scap <- scap[SCAPSTATUS=="Active-Participant"|SCAPSTATUS=="Graduated"]
+#scap <- scap[SCAPSTATUS=="Active-Participant"|SCAPSTATUS=="Graduated"|SCAPSTATUS=="GFA-Participant"]
 
 #reduce to only partner id and date
+scap[, PRTNR_NUM := as.numeric(as.character(PARTNERID))]
 scap <- scap[, .(PRTNR_NUM)]
-#order by ptf
-scap <- setorder(scap)
+scap <- na.omit(scap,cols="PRTNR_NUM")
 
 #create dataset of binary indicators where partners were active participants
 scap[, scap := 1]
 
 #merge
+##inner join on SCAP and recent shift
 dt1 <- Reduce(function(x, y) {merge(x, y, by=c("PRTNR_NUM"), 
-                                     all = TRUE)}, list(scap,store))
+                                     all = FALSE)}, list(scap,store))
 storelist <- unique(dt1[,STORE_NUM])
 dt <- Reduce(function(x, y) {merge(x, y, by=c("STORE_NUM"), 
-                                   all = TRUE)}, list(cc,tsd))
+                                   all = TRUE)}, list(cc,tsd,uplh))
 dt[STORE_NUM %in% storelist, scap := 1]
 
 #make 0's for non-scap stores
 dt[is.na(dt[,scap]), scap := 0]
+#make vars
+dt[, cc_score := round(Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL,3)]
+dt[, tsd := round(CustTrans/day_count,1)]
+dt[, uplh := round(TOT_UNITS/TOT_HOURS,1)]
 
-#cc
-dt <- dt[, list(Nstores = .N,
+#t.tests
+t.test(dt[scap==0,cc_score],dt[scap==1,cc_score])
+t.test(dt[scap==0,uplh],dt[scap==1,uplh])
+
+#aggregate by scap vs. non-scap stores
+dtagg <- dt[, list(Nstores = .N,
                 Q2_2_RESPONSE_TOTAL=sum(Q2_2_RESPONSE_TOTAL,na.rm=T),
                 Q2_2_TB_CNT=sum(Q2_2_TB_CNT,na.rm=T),
                 CustTrans=sum(CustTrans,na.rm=T),
-                day_count=sum(day_count,na.rm=T)),
+                day_count=sum(day_count,na.rm=T),
+                TOT_UNITS=sum(TOT_UNITS,na.rm=T),
+                TOT_HOURS=sum(TOT_HOURS,na.rm=T)),
          by=c("scap")]
-dt[, cc_score := round(Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL,3)]
-dt[, tsd := round(CustTrans/day_count,1)]
-
+dtagg[, cc_score := round(Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL,3)]
+dtagg[, tsd := round(CustTrans/day_count,1)]
+dtagg[, uplh := round(TOT_UNITS/TOT_HOURS,1)]
 
