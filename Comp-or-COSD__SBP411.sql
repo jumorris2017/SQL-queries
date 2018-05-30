@@ -45,7 +45,6 @@
     , org.DRIVE_THRU_IND
 
 
-select * from APPDWH.ADT_STORE org
 
 /*  
 --active store day count
