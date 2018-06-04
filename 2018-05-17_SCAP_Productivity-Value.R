@@ -84,6 +84,8 @@ t.test(dt[URBANITY=="U7"&scap_hourly==0,UPLH],dt[URBANITY=="U7"&scap_hourly==1,U
 summary(lmList(Q2_2_TB_SCORE ~ scap_hourly + scap_sm | URBANITY, data=dt))
 #cafe-only
 summary(lmList(Q2_2_TB_SCORE ~ scap_hourly + scap_sm | URBANITY, data=dt[DT==0]))
+
+
 #DT
 summary(lmList(Q2_2_TB_SCORE ~ scap_hourly + scap_sm | URBANITY, data=dt[DT==1]))
 
@@ -126,3 +128,38 @@ dtagg[, cc_score := round(Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL,3)]
 dtagg[, tsd := round(CustTrans/day_count,1)]
 dtagg[, uplh := round(TOT_UNITS/TOT_HOURS,1)]
 
+
+
+
+
+
+#CC
+t.test(dt[URBANITY=="U1"&DT==0&scap_hourly==0,Q2_2_TB_SCORE],
+       dt[URBANITY=="U1"&DT==0&scap_hourly==1,Q2_2_TB_SCORE])
+t.test(dt[URBANITY=="U4"&DT==0&scap_hourly==0,Q2_2_TB_SCORE],
+       dt[URBANITY=="U4"&DT==0&scap_hourly==1,Q2_2_TB_SCORE])
+#UPLH
+#hourly - cafe
+t.test(dt[URBANITY=="U4"&DT==0&scap_hourly==0,UPLH],
+       dt[URBANITY=="U4"&DT==0&scap_hourly==1,UPLH])
+t.test(dt[URBANITY=="U5"&DT==0&scap_hourly==0,UPLH],
+       dt[URBANITY=="U5"&DT==0&scap_hourly==1,UPLH])
+t.test(dt[URBANITY=="U6"&DT==0&scap_hourly==0,UPLH],
+       dt[URBANITY=="U6"&DT==0&scap_hourly==1,UPLH])
+#hourly - SM
+t.test(dt[URBANITY=="U4"&DT==1&scap_hourly==0,UPLH],
+       dt[URBANITY=="U4"&DT==1&scap_hourly==1,UPLH])
+t.test(dt[URBANITY=="U5"&DT==1&scap_hourly==0,UPLH],
+       dt[URBANITY=="U5"&DT==1&scap_hourly==1,UPLH])
+#SM - cafe
+t.test(dt[URBANITY=="U2"&DT==0&scap_sm==0,UPLH],
+       dt[URBANITY=="U2"&DT==0&scap_sm==1,UPLH])
+t.test(dt[URBANITY=="U4"&DT==0&scap_sm==0,UPLH],
+       dt[URBANITY=="U4"&DT==0&scap_sm==1,UPLH])
+#SM - DT
+t.test(dt[URBANITY=="U2"&DT==1&scap_sm==0,UPLH],
+       dt[URBANITY=="U2"&DT==1&scap_sm==1,UPLH])
+t.test(dt[URBANITY=="U3"&DT==1&scap_sm==0,UPLH],
+       dt[URBANITY=="U3"&DT==1&scap_sm==1,UPLH])
+t.test(dt[URBANITY=="U4"&DT==1&scap_sm==0,UPLH],
+       dt[URBANITY=="U4"&DT==1&scap_sm==1,UPLH])
