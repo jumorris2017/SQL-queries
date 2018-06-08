@@ -185,14 +185,14 @@ write.xlsx(cc,file="O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_byhour_Canada.xls
 
 
 ##slide #5 - CC, SO, Q1, and WP by store performance
-cc <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_bystoreperformance_Canada.csv")
+cc <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/cc-so_bystoreperformance_Canada_FY18Q2.csv")
 cc1 <- copy(cc)
 #remove store number variable for topline
 cc1[, STORE_NUM := NULL]
 #sum - to get one row for the quarter
 cc1 <- cc1[, lapply(.SD, sum, na.rm=TRUE)]
 #will return
-cc1[, RETURN_TB_SCORE := Q1_TDTMRW_CNT/Q1_RESPONSE_TOTAL]
+cc1[, RETURN_TB_SCORE := Q1_TB_CNT/Q1_RESPONSE_TOTAL]
 #customer connection
 cc1[, CC_TB_SCORE := Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL]
 #worth perceptions
@@ -209,12 +209,14 @@ cc1[, SO_TB_SCORE := rowMeans(.SD, na.rm = TRUE),
     .SDcols = c("Q2_1_TB_SCORE", "Q2_3_TB_SCORE", "Q2_4_TB_SCORE",
                 "Q2_5_TB_SCORE", "Q2_6_TB_SCORE", "Q2_7_TB_SCORE")]
 #keep only variables we need
-cc1 <- cc1[, (colnames(cc1[,-c(1:18)])), with=FALSE]
+cc1 <- cc1[, (grep("TB_SCORE",colnames(cc1),value=T)), with=FALSE]
+cc1[, Q1_TB_SCORE := NULL]
+cc1 <- cc1[, lapply(.SD,function(x) round(x,2)*100)]
 
 #quantile stores
 cc2 <- copy(cc)
 #will return
-cc2[, RETURN_TB_SCORE := Q1_TDTMRW_CNT/Q1_RESPONSE_TOTAL]
+cc2[, RETURN_TB_SCORE := Q1_TB_CNT/Q1_RESPONSE_TOTAL]
 #customer connection
 cc2[, CC_TB_SCORE := Q2_2_TB_CNT/Q2_2_RESPONSE_TOTAL]
 #worth perceptions
@@ -251,7 +253,9 @@ ccquant <- cc2[, list(RETURN_10 = quantile(RETURN_TB_SCORE,.1,na.rm=T),
                     Q2_6_90 = quantile(Q2_6_TB_SCORE,.9,na.rm=T),
                     Q2_7_10 = quantile(Q2_7_TB_SCORE,.1,na.rm=T),
                     Q2_7_90 = quantile(Q2_7_TB_SCORE,.9,na.rm=T))]
-#
+ccquant <- ccquant[, lapply(.SD,function(x) round(x,2)*100)]
+
+
 # ccavg <- cc2[, list(RETURN_TB_SCORE = sum(Q1_TDTMRW_CNT)/sum(Q1_RESPONSE_TOTAL),
 #                    CC_TB_SCORE = sum(Q2_2_TB_CNT)/sum(Q2_2_RESPONSE_TOTAL),
 #                    SO_TB_SCORE = sum(SO_TB_CNT)/sum(SO_Total),

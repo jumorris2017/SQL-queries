@@ -3,14 +3,14 @@
 /*MOP Slide #1*/
 /*export as CE_bychannel_byquarter.csv*/
 SELECT DISTINCT
-  --,sr.STORE_NUM
-  sr.QSTN_ID
+  sr.STORE_NUM
+  ,sr.QSTN_ID
   ,ca.FSCL_YR_NUM
   ,ca.FSCL_QTR_IN_YR_NUM
-  --,tt.ORD_MTHD_CD
-  ,st.OWNR_TYPE_CD
-  ,st.CNTRY_CD_2_DGT_ISO
-  ,st.DRIVE_THRU_IND
+  ,tt.ORD_MTHD_CD
+  --,st.OWNR_TYPE_CD
+  --,st.CNTRY_CD_2_DGT_ISO
+  --,st.DRIVE_THRU_IND
   ,SUM(CASE  WHEN sr.RSPNS_ID = '5' AND sr.QSTN_ID = 'Q1' THEN COALESCE(w.WEIGHT_RT,1) /* coalesce returns non-null weight value, OR if null, returns 1 */
     WHEN sr.RSPNS_ID = '7' THEN COALESCE(w.WEIGHT_RT,1) ELSE 0 END) AS TOTAL_TB
   ,SUM(COALESCE(w.WEIGHT_RT,1)) AS TOTAL_RSPNS
@@ -24,7 +24,8 @@ JOIN APPCA.D_CAL ca
 JOIN APPCA.D_STORE_VERS st
   ON sr.STORE_NUM = st.STORE_NUM
     AND st.CURRENT_FLG = 'Y'
-    AND st.OWNR_TYPE_CD IN ('CO','LS')
+    AND st.OWNR_TYPE_CD IN ('CO')
+    AND st.CNTRY_CD_2_DGT_ISO IN ('CA')
     --AND sr.STORE_NUM IN ('50621') --sodo reserve (SSC)
 
 LEFT JOIN APPOTHER.CUST_INS_WEIGHTS w
@@ -35,27 +36,25 @@ LEFT JOIN APPOTHER.CUST_INS_WEIGHTS w
 JOIN APPCA.F_POS_LINE_ITEM pi
   ON TO_CHAR(sr.TRANS_DTM, 'YYYYMMDD') || TRIM(TO_CHAR(sr.STORE_NUM, '000000'))
       || TRIM(TO_CHAR(SUBSTR(sr.RGSTR_NUM, -1, 2),'00')) || sr.TRANS_ID = pi.TRANS_ID
-    AND pi.CNTRY_CD = 'US'
+
   
 JOIN APPCA.D_POS_LINE_ITEM_TRANS_TYPE tt
   ON pi.POS_LINE_ITEM_TRANS_TYPE_KEY = tt.POS_LINE_ITEM_TRANS_TYPE_KEY
   WHERE tt.ORD_MTHD_CD IN ('CAFE','MOP','OTW')
-  AND sr.QSTN_ID IN ('Q1', 'Q2_1','Q2_2','Q2_3','Q2_4','Q2_5','Q2_6','Q2_7','Q2_8')
-  --AND sr.QSTN_ID IN ('Q2_1','Q2_2','Q2_3','Q2_4','Q2_5','Q2_6','Q2_7','Q2_8')
+  AND sr.QSTN_ID IN ('Q1','Q2_1','Q2_2','Q2_3','Q2_4','Q2_5','Q2_6','Q2_7','Q2_8')
   --AND sr.QSTN_ID IN ('Q2_2')
   AND sr.RSPNS_ID <> '9'
-  AND ((ca.FSCL_YR_NUM = 2018))
+  AND ca.FSCL_YR_NUM = 2018
+  AND ca.FSCL_QTR_IN_YR_NUM = 2
       
 GROUP BY
-  sr.QSTN_ID
+  sr.STORE_NUM
+  ,sr.QSTN_ID
   ,ca.FSCL_YR_NUM
   ,ca.FSCL_QTR_IN_YR_NUM
-  --,tt.ORD_MTHD_CD
-  ,st.OWNR_TYPE_CD
-  ,st.CNTRY_CD_2_DGT_ISO
-  ,st.DRIVE_THRU_IND
+  ,tt.ORD_MTHD_CD
+
 ORDER BY
-  sr.QSTN_ID
-  --,tt.ORD_MTHD_CD
-  ,ca.FSCL_YR_NUM
-  ,ca.FSCL_QTR_IN_YR_NUM
+  tt.ORD_MTHD_CD
+  ,sr.QSTN_ID
+

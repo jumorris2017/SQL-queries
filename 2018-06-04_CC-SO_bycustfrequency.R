@@ -58,7 +58,10 @@ plot1a <- ggplot(data=pdata1a,aes(y=py1a,x=as.factor(px1a),fill=as.factor(groupv
   geom_bar(stat="identity", width = 0.95, position=position_dodge(), colour="black") +
   scale_fill_brewer(palette = 1, name=lname, labels=llabels) + theme_economist_white(gray_bg = FALSE) +
   scale_x_discrete(name="",labels=xlabels) +
-  scale_y_continuous(limits=c(0,100)) +
+  scale_y_continuous(limits=c(0,80)) +
   xlab("") + ylab(ylabel) + ggtitle(tlabel) + labs(subtitle=sublabel,caption=caption) +
   geom_text(size = 3.5, aes(label=py1a,y=0), stat="identity", vjust = -1, position = position_dodge(0.95)) 
 print(plot1a)
+
+
+#breaks=c(0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75),labels=c(0,10,20,30,40,50,60,70)
