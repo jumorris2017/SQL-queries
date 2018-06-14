@@ -5,8 +5,19 @@ library(flipRegression)
 
 #load data
 pce <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/CE_bychannel_q2fy18_CANADA.csv")
+pce <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/CE_bychannel_FY17_CANADA.csv")
+
+#aggregate for Q4
+pce <- pce[, lapply(.SD, sum, na.rm=T), .SDcols=c("TOTAL_TB","TOTAL_RSPNS"),
+              by=c("STORE_NUM","QSTN_ID","ORD_MTHD_CD")]
+pce <- pce[TOTAL_RSPNS>=200]
+pce[, TB_SCORE := TOTAL_TB/TOTAL_RSPNS]
+
 #swing wide
 pce2 <- dcast.data.table(pce, STORE_NUM + ORD_MTHD_CD ~ QSTN_ID, value.var="TB_SCORE")
+pce2 <- na.omit(pce2)
+#restrict based on total response
+
 
 #ALL STORES: 
 #CAFE

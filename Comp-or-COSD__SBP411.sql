@@ -6,10 +6,10 @@
          --, ca.FSCL_WK_IN_YR_NUM
         , ca.FSCL_QTR_IN_YR_NUM
         --, ca.FSCL_PER_IN_YR_NUM
-        , org.OWNR_TYPE_CD
-        , org.CNTRY_CD
-        , org.DRIVE_THRU_IND
-        --, f.STORE_NUMBER
+        --, org.OWNR_TYPE_CD
+        --, org.CNTRY_CD
+        --, org.DRIVE_THRU_IND
+        , f.STORE_NUMBER
         , SUM(f.NET_DISCOUNTED_SALES_AMT) "Sales"
         , SUM(f.NET_DISCOUNTED_SALES_LY_AMT) "LYSales"
         , ROUND((SUM(f.NET_DISCOUNTED_SALES_AMT) - SUM(f.NET_DISCOUNTED_SALES_LY_AMT)) / SUM(f.NET_DISCOUNTED_SALES_LY_AMT),4) AS salescomp
@@ -22,11 +22,11 @@
         INNER JOIN APPDWH.ADT_STORE org
             ON f.STORE_NUMBER = org.STORE_NUM
             AND org.OWNR_TYPE_CD IN ('CO')
-            AND org.CNTRY_CD IN ('US')
+            AND org.CNTRY_CD IN ('CA')
         
         INNER JOIN APPDWH.ADT_CAL ca
             ON f.BUSINESS_DATE = ca.CAL_DT
-            AND ca.FSCL_YR_NUM in (2017,2018) 
+            AND ca.FSCL_YR_NUM in (2018) 
             AND ca.FSCL_QTR_IN_YR_NUM = 2
         
         INNER JOIN APPBUS.AFT_STORE_COMP_PER_VW comp
@@ -35,14 +35,14 @@
             AND COMP_CODE = 'Y'
     
     GROUP BY ca.FSCL_YR_NUM
-    --f.STORE_NUMBER
+    ,f.STORE_NUMBER
     --, ca.FSCL_YR_NUM
     --, ca.FSCL_WK_IN_YR_NUM
     , ca.FSCL_QTR_IN_YR_NUM
     --, ca.FSCL_PER_IN_YR_NUM
-    , org.OWNR_TYPE_CD
-    , org.CNTRY_CD
-    , org.DRIVE_THRU_IND
+    --, org.OWNR_TYPE_CD
+    --, org.CNTRY_CD
+    --, org.DRIVE_THRU_IND
 
 
 

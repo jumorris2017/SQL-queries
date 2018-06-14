@@ -1,5 +1,4 @@
 #expected CC and speed values for Neha deployment
-#Apr 2018 scores
 #using TSDs, region, and home store % as indicators
 
 #load libaries
@@ -15,16 +14,22 @@ ce <- fread(paste0(data_dir_J,"/FY18_CC-Speed_StoreLevel.csv"))
 hs <- fread(paste0(data_dir_J,"/FP7FY18_homestore.csv"))
 tsd <- fread(paste0(data_dir_J,"/FP7FY18_TSD.csv"))
 
-#keep only april
-ce <- ce[FSCL_PER_IN_YR_NUM==7]
-hs <- hs[FSCL_PER_IN_YR_NUM==7]
-tsd <- tsd[FSCL_PER_IN_YR_NUM==7]
+#aggregate
+hs <- hs[, lapply(.SD,sum(x,na.rm=T)), by=c("STORE_NUM","FSCL_YR_NUM"),
+         .SDcols=c("HS_CUST_COUNT","ALL_CUST_COUNT")]
+tsd <- tsd[, lapply(.SD,sum(x,na.rm=T)), by=c("STORE_NUM","FSCL_YR_NUM","RGN_ORG_LVL_DESCR"),
+         .SDcols=c("CustTrans","day_count")]
+
+# #keep only latest month
+ce <- ce[FSCL_PER_IN_YR_NUM==8]
+# hs <- hs[FSCL_PER_IN_YR_NUM==8]
+# tsd <- tsd[FSCL_PER_IN_YR_NUM==8]
 #calculate CC score
 ce[, CC_TB_SCORE := CC_TB_CNT/CC_RESPONSE_TOTAL]
 
 #merge
 cedt <- Reduce(function(x, y) {merge(x, y, 
-                                     by=c("STORE_NUM","FSCL_YR_NUM","FSCL_PER_IN_YR_NUM"), 
+                                     by=c("STORE_NUM","FSCL_YR_NUM"), 
                                      all = TRUE)}, list(ce,hs,tsd))
 
 #calculate CC score
@@ -52,4 +57,4 @@ ceobs <- ce[, .(STORE_NUM,CC_TB_SCORE)]
 newData <- Reduce(function(x, y) {merge(x, y, by=c("STORE_NUM"), 
                                      all = TRUE)}, list(newData,ceobs))
 newData <- na.omit(newData)
-write.csv(newData,file=paste0(data_dir,"/P7_FY18_CC_observed-expected_StoreLevel.csv"))
+write.csv(newData,file=paste0(data_dir,"/P8_FY18_CC_observed-expected_StoreLevel.csv"))

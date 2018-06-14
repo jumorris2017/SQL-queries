@@ -3,11 +3,8 @@
 WITH sq AS
 (SELECT DISTINCT
   TO_CHAR(sr.TRANS_DTM, 'HH24') AS HOUR
-    ,(CASE WHEN TO_CHAR(sr.TRANS_DTM, 'HH24') < 7 THEN 'early_am' 
-        WHEN TO_CHAR(sr.TRANS_DTM, 'HH24') >=7 AND TO_CHAR(sr.TRANS_DTM, 'HH24') < 11 THEN 'am' -- midday
-        WHEN TO_CHAR(sr.TRANS_DTM, 'HH24') >=11 AND TO_CHAR(sr.TRANS_DTM, 'HH24') < 14 THEN 'midday' -- midday
-        WHEN TO_CHAR(sr.TRANS_DTM, 'HH24') >=14 AND TO_CHAR(sr.TRANS_DTM, 'HH24') < 17 THEN 'pm' -- pm
-        WHEN TO_CHAR(sr.TRANS_DTM, 'HH24') >=17 THEN 'late_pm' -- late pm
+    ,(CASE WHEN TO_CHAR(sr.TRANS_DTM, 'HH24') >=7 AND TO_CHAR(sr.TRANS_DTM, 'HH24') < 11 THEN 'peak7to11' -- early am
+        WHEN TO_CHAR(sr.TRANS_DTM, 'HH24') >=11 THEN 'post11' -- late pm
         ELSE 'NA' 
         END) AS DAY_PART
   ,sr.QSTN_ID
@@ -26,15 +23,14 @@ JOIN APPCA.D_STORE_VERS st
   ON sr.STORE_NUM = st.STORE_NUM
     AND st.CURRENT_FLG = 'Y'
     AND st.OWNR_TYPE_CD = 'CO'
-    AND st.CNTRY_CD_2_DGT_ISO = 'CA'
+    AND st.CNTRY_CD_2_DGT_ISO = 'US'
     
 LEFT JOIN APPOTHER.CUST_INS_WEIGHTS w
   ON sr.CASE_ID = w.CASE_ID
 
-  WHERE sr.QSTN_ID IN ('Q2_1')
+  WHERE sr.QSTN_ID IN ('Q2_2','Q2_1','Q2_7','Q2_5')
   AND sr.RSPNS_ID <> '9'
-  AND ca.FSCL_YR_NUM IN (2017,2018) 
-  --AND ca.FSCL_PER_IN_YR_NUM IN (2)
+  AND ca.FSCL_YR_NUM IN (2017,2018) AND ca.FSCL_PER_IN_YR_NUM IN (8) --UPDATE HERE
 
 GROUP BY
   TO_CHAR(sr.TRANS_DTM, 'HH24') 
@@ -42,7 +38,7 @@ GROUP BY
   ,sr.QSTN_ID
   ,ca.FSCL_YR_NUM
   ,ca.FSCL_PER_IN_YR_NUM
-)
+), sq2 AS (
 SELECT 
 sq.QSTN_ID
 ,sq.DAY_PART
@@ -53,7 +49,7 @@ sq.QSTN_ID
 ,sq.FSCL_PER_IN_YR_NUM
 FROM sq
 
-WHERE sq.DAY_PART IN ('am','pm')
+WHERE sq.DAY_PART IN ('peak7to11','post11')
 
 GROUP BY 
 sq.QSTN_ID
@@ -63,5 +59,28 @@ sq.QSTN_ID
 
 ORDER BY sq.FSCL_YR_NUM
 ,sq.FSCL_PER_IN_YR_NUM
-,sq.DAY_PART
+,sq.QSTN_ID
+,sq.DAY_PART)
+SELECT 
+sq2.QSTN_ID
+,sq2.DAY_PART
+,sq2.TB_SCORE
+,sq2.FSCL_YR_NUM
+,sq2.FSCL_PER_IN_YR_NUM
+,sq2.TB_SCORE - lag(sq2.TB_SCORE) over(order by sq2.QSTN_ID, sq2.DAY_PART, sq2.FSCL_YR_NUM) AS TB_SCORE_YOY
 
+FROM sq2
+
+--WHERE sq2.FSCL_YR_NUM = 2018
+
+GROUP BY 
+sq2.QSTN_ID
+,sq2.DAY_PART
+,sq2.TB_SCORE
+,sq2.FSCL_YR_NUM
+,sq2.FSCL_PER_IN_YR_NUM
+
+ORDER BY sq2.FSCL_YR_NUM
+,sq2.FSCL_PER_IN_YR_NUM
+,sq2.QSTN_ID
+,sq2.DAY_PART
