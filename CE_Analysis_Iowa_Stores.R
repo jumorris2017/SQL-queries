@@ -51,3 +51,45 @@ sm <- sm[, .(STORE_NUM,SM1YRSTABLE,SM2YRSTABLE)]
 iowa <- Reduce(function(x, y) {merge(x, y, by=c("STORE_NUM"), all = TRUE)}, list(ce,cepk,cech,chmix,pthr,ptsm,sm))
 iowa <- setorder(iowa,STORE_NUM)
 write.csv(iowa, paste0(data_dir,"/Iowa_Stores_CE.csv"))
+
+
+
+
+
+
+##UPDATE FOR TOPLINE
+pt <- fread(paste0(data_dir,"/Iowa_Stores_Q2FY18_PartnerTenure.csv"))
+ptmam <- fread(paste0(data_dir,"/MAM_Q2FY18_PartnerTenure.csv"))
+ptus <- fread(paste0(data_dir,"/US_Q2FY18_PartnerTenure.csv"))
+
+#calculate tenure; library(lubridate)
+pt[, hiredt := as_date(mdy_hm(MOST_RECENT_HIRE_DT))]
+pt[, today := as_date(Sys.Date())]
+pt[, tenure := today-hiredt]
+pt[, tenure_yrs := as.numeric(tenure, units="days")]
+pt[, tenure_yrs := round(tenure_yrs/365.25,2)]
+#average by store for hourly partners
+pt[JOB_ID==50000362|JOB_ID==50000358, list(hrly_sbux_tenure_yrs = round(mean(tenure_yrs,na.rm=T),2))]
+pt[JOB_ID==50000117, list(sm_sbux_tenure_yrs = round(mean(tenure_yrs,na.rm=T),2))]
+
+#calculate tenure; library(lubridate)
+ptmam[, hiredt := as_date(mdy_hm(MOST_RECENT_HIRE_DT))]
+ptmam[, today := as_date(Sys.Date())]
+ptmam[, tenure := today-hiredt]
+ptmam[, tenure_yrs := as.numeric(tenure, units="days")]
+ptmam[, tenure_yrs := round(tenure_yrs/365.25,2)]
+#average by store for hourly partners
+ptmam[JOB_ID==50000362|JOB_ID==50000358, list(hrly_sbux_tenure_yrs = round(mean(tenure_yrs,na.rm=T),2))]
+ptmam[JOB_ID==50000117, list(sm_sbux_tenure_yrs = round(mean(tenure_yrs,na.rm=T),2))]
+
+#calculate tenure; library(lubridate)
+ptus[, hiredt := as_date(mdy_hm(MOST_RECENT_HIRE_DT))]
+ptus[, today := as_date(Sys.Date())]
+ptus[, tenure := today-hiredt]
+ptus[, tenure_yrs := as.numeric(tenure, units="days")]
+ptus[, tenure_yrs := round(tenure_yrs/365.25,2)]
+#average by store for hourly partners
+ptus[JOB_ID==50000362|JOB_ID==50000358, list(hrly_sbux_tenure_yrs = round(mean(tenure_yrs,na.rm=T),2))]
+ptus[JOB_ID==50000117, list(sm_sbux_tenure_yrs = round(mean(tenure_yrs,na.rm=T),2))]
+
+
