@@ -83,7 +83,7 @@ ptmam[JOB_ID==50000362|JOB_ID==50000358, list(hrly_sbux_tenure_yrs = round(mean(
 ptmam[JOB_ID==50000117, list(sm_sbux_tenure_yrs = round(mean(tenure_yrs,na.rm=T),2))]
 
 #calculate tenure; library(lubridate)
-ptus[, hiredt := as_date(mdy_hm(MOST_RECENT_HIRE_DT))]
+ptus[, hiredt := as_date(ymd_hms(MOST_RECENT_HIRE_DT))]
 ptus[, today := as_date(Sys.Date())]
 ptus[, tenure := today-hiredt]
 ptus[, tenure_yrs := as.numeric(tenure, units="days")]
