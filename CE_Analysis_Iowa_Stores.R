@@ -93,3 +93,121 @@ ptus[JOB_ID==50000362|JOB_ID==50000358, list(hrly_sbux_tenure_yrs = round(mean(t
 ptus[JOB_ID==50000117, list(sm_sbux_tenure_yrs = round(mean(tenure_yrs,na.rm=T),2))]
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+tfunc <- function(x1,x2,sd,df){(x1-x2)/sqrt((sd^2)/df)}
+data_dir <- "O:/CoOp/CoOp194_PROReportng&OM/Julie"
+dt <- fread(paste0(data_dir,"/Pulse_Analysis_Labor_TaskEvolved.csv"))
+dt <- dt[!is.na(REGION)]
+
+temp <- rbind(dt[JOB_ID==50000362&DAYPART=='PM'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000362&DAYPART=='PM'&TPERIOD=='1_POST',],
+              dt[JOB_ID==50000362&DAYPART=='RESTOFDAY'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000362&DAYPART=='RESTOFDAY'&TPERIOD=='1_POST',],
+              dt[JOB_ID==50000358&DAYPART=='PM'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000358&DAYPART=='PM'&TPERIOD=='1_POST',],
+              dt[JOB_ID==50000358&DAYPART=='RESTOFDAY'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000358&DAYPART=='RESTOFDAY'&TPERIOD=='1_POST',],
+              dt[JOB_ID==50000117&DAYPART=='PM'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000117&DAYPART=='PM'&TPERIOD=='1_POST',],
+              dt[JOB_ID==50000117&DAYPART=='RESTOFDAY'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000117&DAYPART=='RESTOFDAY'&TPERIOD=='1_POST',])
+
+
+tfunc(dt[JOB_ID==50000362&DAYPART=='PM'&TPERIOD=='0_PRE',AVG_SCORE],
+      dt[JOB_ID==50000362&DAYPART=='PM'&TPERIOD=='1_POST',AVG_SCORE],
+      dt[JOB_ID==50000362&DAYPART=='PM'&TPERIOD=='1_POST',SD_SCORE],
+      dt[JOB_ID==50000362&DAYPART=='PM'&TPERIOD=='0_PRE',RESP_TOTAL])
+
+tfunc(dt[JOB_ID==50000358&DAYPART=='PM'&TPERIOD=='0_PRE',AVG_SCORE],
+      dt[JOB_ID==50000358&DAYPART=='PM'&TPERIOD=='1_POST',AVG_SCORE],
+      dt[JOB_ID==50000358&DAYPART=='PM'&TPERIOD=='1_POST',SD_SCORE],
+      dt[JOB_ID==50000358&DAYPART=='PM'&TPERIOD=='0_PRE',RESP_TOTAL])
+
+tfunc(dt[JOB_ID==50000117&DAYPART=='PM'&TPERIOD=='0_PRE',AVG_SCORE],
+      dt[JOB_ID==50000117&DAYPART=='PM'&TPERIOD=='1_POST',AVG_SCORE],
+      dt[JOB_ID==50000117&DAYPART=='PM'&TPERIOD=='1_POST',SD_SCORE],
+      dt[JOB_ID==50000117&DAYPART=='PM'&TPERIOD=='0_PRE',RESP_TOTAL])
+
+tfunc(dt[JOB_ID==50000362&DAYPART=='RESTOFDAY'&TPERIOD=='0_PRE',AVG_SCORE],
+      dt[JOB_ID==50000362&DAYPART=='RESTOFDAY'&TPERIOD=='1_POST',AVG_SCORE],
+      dt[JOB_ID==50000362&DAYPART=='RESTOFDAY'&TPERIOD=='1_POST',SD_SCORE],
+      dt[JOB_ID==50000362&DAYPART=='RESTOFDAY'&TPERIOD=='0_PRE',RESP_TOTAL])
+
+tfunc(dt[JOB_ID==50000358&DAYPART=='RESTOFDAY'&TPERIOD=='0_PRE',AVG_SCORE],
+      dt[JOB_ID==50000358&DAYPART=='RESTOFDAY'&TPERIOD=='1_POST',AVG_SCORE],
+      dt[JOB_ID==50000358&DAYPART=='RESTOFDAY'&TPERIOD=='1_POST',SD_SCORE],
+      dt[JOB_ID==50000358&DAYPART=='RESTOFDAY'&TPERIOD=='0_PRE',RESP_TOTAL])
+
+tfunc(dt[JOB_ID==50000117&DAYPART=='RESTOFDAY'&TPERIOD=='0_PRE',AVG_SCORE],
+      dt[JOB_ID==50000117&DAYPART=='RESTOFDAY'&TPERIOD=='1_POST',AVG_SCORE],
+      dt[JOB_ID==50000117&DAYPART=='RESTOFDAY'&TPERIOD=='1_POST',SD_SCORE],
+      dt[JOB_ID==50000117&DAYPART=='RESTOFDAY'&TPERIOD=='0_PRE',RESP_TOTAL])
+
+
+
+
+
+
+
+
+
+
+
+
+tfunc <- function(x1,x2,sd,df){(x1-x2)/sqrt((sd^2)/df)}
+data_dir <- "O:/CoOp/CoOp194_PROReportng&OM/Julie"
+dt <- fread(paste0(data_dir,"/Pulse_Analysis_Labor_TaskEvolved2.csv"))
+dt <- setorder(dt,-JOB_ID,DAYPART,TPERIOD,-REGION)
+dt <- dt[!is.na(REGION)]
+
+temp <- rbind(dt[JOB_ID==50000362&DAYPART=='PM'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000362&DAYPART=='PM'&TPERIOD=='1_POST',],
+              dt[JOB_ID==50000362&DAYPART=='MID'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000362&DAYPART=='MID'&TPERIOD=='1_POST',],
+              dt[JOB_ID==50000362&DAYPART=='RESTOFDAY'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000362&DAYPART=='RESTOFDAY'&TPERIOD=='1_POST',],
+              dt[JOB_ID==50000358&DAYPART=='PM'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000358&DAYPART=='PM'&TPERIOD=='1_POST',],
+              dt[JOB_ID==50000358&DAYPART=='MID'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000358&DAYPART=='MID'&TPERIOD=='1_POST',],
+              dt[JOB_ID==50000358&DAYPART=='RESTOFDAY'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000358&DAYPART=='RESTOFDAY'&TPERIOD=='1_POST',],
+              dt[JOB_ID==50000117&DAYPART=='PM'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000117&DAYPART=='PM'&TPERIOD=='1_POST',],
+              dt[JOB_ID==50000117&DAYPART=='MID'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000117&DAYPART=='MID'&TPERIOD=='1_POST',],
+              dt[JOB_ID==50000117&DAYPART=='RESTOFDAY'&TPERIOD=='0_PRE',],
+              dt[JOB_ID==50000117&DAYPART=='RESTOFDAY'&TPERIOD=='1_POST',])
+temp <- setorder(temp,-JOB_ID,DAYPART,TPERIOD,-REGION)
+write.csv(temp,paste0(data_dir,"/temp2.csv"))
+
+tfunc(dt[JOB_ID==50000362&DAYPART=='MID'&TPERIOD=='0_PRE',AVG_SCORE],
+      dt[JOB_ID==50000362&DAYPART=='MID'&TPERIOD=='1_POST',AVG_SCORE],
+      dt[JOB_ID==50000362&DAYPART=='MID'&TPERIOD=='1_POST',SD_SCORE],
+      dt[JOB_ID==50000362&DAYPART=='MID'&TPERIOD=='0_PRE',RESP_TOTAL])
+
+tfunc(dt[JOB_ID==50000362&DAYPART=='PM'&TPERIOD=='0_PRE',AVG_SCORE],
+      dt[JOB_ID==50000362&DAYPART=='PM'&TPERIOD=='1_POST',AVG_SCORE],
+      dt[JOB_ID==50000362&DAYPART=='PM'&TPERIOD=='1_POST',SD_SCORE],
+      dt[JOB_ID==50000362&DAYPART=='PM'&TPERIOD=='0_PRE',RESP_TOTAL])
