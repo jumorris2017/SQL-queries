@@ -34,7 +34,6 @@ INNER JOIN APPCA.D_STORE_VERS st
   
 WHERE sr.TRANS_DTM >= '29-DEC-16'  -- offical launch date of CO store program
   AND sr.QSTN_ID IN ('Q1','Q2_1','Q2_2','Q2_3','Q2_4','Q2_5','Q2_6','Q2_7','Q2_8')
-  --AND sr.QSTN_ID = 'Q2_2'  -- CC Only
   AND sr.RSPNS_ID <> '9'
   AND st.CNTRY_CD_2_DGT_ISO = 'US'
   AND st.OWNR_TYPE_CD = 'CO'

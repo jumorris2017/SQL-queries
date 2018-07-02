@@ -3,12 +3,12 @@
 
 /* Counts SR transactions associated with MID/ALTMID combinations */
 SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
-    WHERE ac.ALT_MRCHT_ID IN (75580) 
-    AND ac.MRCHT_ID IN (97317800001 ) 
-    AND ac.TRANS_DT > '15-may-18' 
+    WHERE ac.MRCHT_ID IN (97317800001 ) 
+    --AND ac.ALT_MRCHT_ID IN (53861 ) 
+    AND ac.TRANS_DT > '18-may-18' 
     GROUP BY ac.MRCHT_ID, ac.ALT_MRCHT_ID
     ORDER BY ac.MRCHT_ID, ac.ALT_MRCHT_ID
-    
+
 /* Counts SR transactions associated with MID/ALTMID combinations */
 SELECT ac.MRCHT_ID, ac.ALT_MRCHT_ID, COUNT(*) FROM APPCA.F_CARD ac
     WHERE ( (ac.ALT_MRCHT_ID IN (40167) AND ac.MRCHT_ID IN (97039100009 ))
@@ -57,7 +57,7 @@ ORDER BY
 
 /* SURVEY COUNTS DATA TABLE */
 SELECT * FROM APPOTHER.AFT_CV_SRVY_RSPNS sr
-WHERE sr.STORE_NUM IN (76622) 
+WHERE sr.STORE_NUM IN (53861) 
 
 
 /*
