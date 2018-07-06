@@ -1,7 +1,7 @@
 --415 (PDW)
 --Pulls partners' job id
 
-select * from APPPDW.DDT_PRTNR a
+select a.SAP_PRTNR_ID, a.EMP_STAT_CD, c.JOB_ID, c.JOB_NM, a.WORK_CNTRY_CD from APPPDW.DDT_PRTNR a
 
 join APPPDW.DFT_RELATIONSHIPS b
 on a.SNAPSHOT_DT = b.SNAPSHOT_DT
@@ -11,13 +11,14 @@ join APPPDW.DDV_POSN_JOB c
 on a.SNAPSHOT_DT = c.SNAPSHOT_DT
 and b.POSN_JOB_VERS_KEY = c.POSN_JOB_VERS_KEY
 
-where a.SAP_PRTNR_ID IN ('01147421')
-and a.SNAPSHOT_DT = to_date('02-26-2018', 'MM-DD-YYYY')
-
+where a.SNAPSHOT_DT = (select max(SNAPSHOT_DT) from APPPDW.DDT_PRTNR)
+and b.SNAPSHOT_DT = (select max(SNAPSHOT_DT) from APPPDW.DFT_RELATIONSHIPS)
+and c.SNAPSHOT_DT = (select max(SNAPSHOT_DT) from APPPDW.DDV_POSN_JOB)
+and a.EFF_TO_DT = (select max(EFF_TO_DT) from APPPDW.DDT_PRTNR)
+and b.EFF_TO_DT = (select max(EFF_TO_DT) from APPPDW.DFT_RELATIONSHIPS)
+and c.EFF_TO_DT = (select max(EFF_TO_DT) from APPPDW.DDV_POSN_JOB)
+and a.SAP_PRTNR_ID IN ('01147421')
 order by a.EFF_TO_DT 
-
-
-
 
 
 
