@@ -3,8 +3,8 @@
 /*MOP Slide #1*/
 /*export as CE_bychannel_byquarter.csv*/
 SELECT DISTINCT
-  sr.STORE_NUM
-  ,sr.QSTN_ID
+  --sr.STORE_NUM
+  sr.QSTN_ID
   ,ca.FSCL_YR_NUM
   ,ca.FSCL_QTR_IN_YR_NUM
   ,tt.ORD_MTHD_CD
@@ -25,7 +25,7 @@ JOIN APPCA.D_STORE_VERS st
   ON sr.STORE_NUM = st.STORE_NUM
     AND st.CURRENT_FLG = 'Y'
     AND st.OWNR_TYPE_CD IN ('CO')
-    AND st.CNTRY_CD_2_DGT_ISO IN ('CA')
+    AND st.CNTRY_CD_2_DGT_ISO IN ('US')
     --AND sr.STORE_NUM IN ('50621') --sodo reserve (SSC)
 
 LEFT JOIN APPOTHER.CUST_INS_WEIGHTS w
@@ -45,11 +45,11 @@ JOIN APPCA.D_POS_LINE_ITEM_TRANS_TYPE tt
   --AND sr.QSTN_ID IN ('Q2_2')
   AND sr.RSPNS_ID <> '9'
   AND ca.FSCL_YR_NUM = 2018
-  AND ca.FSCL_QTR_IN_YR_NUM = 2
+  AND ca.FSCL_QTR_IN_YR_NUM = 3
       
 GROUP BY
-  sr.STORE_NUM
-  ,sr.QSTN_ID
+  --sr.STORE_NUM
+  sr.QSTN_ID
   ,ca.FSCL_YR_NUM
   ,ca.FSCL_QTR_IN_YR_NUM
   ,tt.ORD_MTHD_CD

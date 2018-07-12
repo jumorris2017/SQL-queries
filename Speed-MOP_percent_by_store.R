@@ -3,7 +3,6 @@
 #load libraries
 library(data.table)
 library(tidyverse)
-library(xlsx)
 library(ggplot2)
 library(ggthemes)
 
@@ -11,9 +10,9 @@ library(ggthemes)
 #SLIDE 2 - Speed
 
 #load data
-mop <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/MOP_percent_by_store_FY18Q2.csv")
-mopsp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/SP_by_store_cafe_only_FY18Q2-FY17Q1.csv")
-mopsp[, STORE_NUM := as.numeric(STORE_NUM)]
+mop <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/MOP_percent_by_store_FY18Q3.csv")
+mopsp <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/SP_cafeonly_peak_FY18Q3-FY17Q1.csv")
+#mopsp[, STORE_NUM := as.numeric(STORE_NUM)]
 mopsp15 <- fread("O:/CoOp/CoOp194_PROReportng&OM/Julie/CC-SP_by_store_cafe_onlyFY15Q4.csv")
 mopsp15 <- mopsp15[QSTN_ID=='Q2_1']
 mopsp15[, STORE_NUM := as.numeric(STORE_NUM)]
