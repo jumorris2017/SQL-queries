@@ -22,14 +22,14 @@ wp <- wp[, list(wp_tb_score = round(sum(WP_TB,na.rm=T)/sum(WP_RESP,na.rm=T),4)),
 wp <- dcast.data.table(wp, FSCL_WK_IN_YR_NUM + price_zone ~ FSCL_YR_NUM, value.var="wp_tb_score")
 
 #setnames
-setnames(wp,c("2017","2018"),c("wp_2017","wp_2018"))
+setnames(wp,c("2016","2017","2018"),c("wp_2016","wp_2017","wp_2018"))
 
 #set order
-setcolorder(wp,c("price_zone","FSCL_WK_IN_YR_NUM","wp_2018","wp_2017"))
+setcolorder(wp,c("price_zone","FSCL_WK_IN_YR_NUM","wp_2018","wp_2017","wp_2016"))
 wp <- setorder(wp,price_zone,FSCL_WK_IN_YR_NUM)
 
 #drop missing
-wp <- na.omit(wp)
+wp <- na.omit(wp,cols="price_zone")
 
 #write to .csv
-write.csv(wp,file=paste0(data_dir,"/20180719_wp_by_pricezones.csv"),row.names=F)
+write.csv(wp,file=paste0(data_dir,"/20180726_wp_by_pricezones.csv"),row.names=F)

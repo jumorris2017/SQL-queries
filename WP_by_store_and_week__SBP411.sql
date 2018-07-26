@@ -26,8 +26,8 @@ FROM APPDWH.AFT_CV_SRVY_RSPNS ce
          AND org.OWNR_TYPE_CD IN ('CO')
          AND org.CNTRY_CD IN ('US','CA')
             
-      AND c.FSCL_YR_NUM IN (2017,2018)
-      AND c.FSCL_WK_IN_YR_NUM BETWEEN 26 AND 41
+      AND (c.FSCL_YR_NUM IN (2016,2017) OR (c.FSCL_YR_NUM IN (2018) AND c.FSCL_WK_IN_YR_NUM BETWEEN 1 AND 41))
+      --AND c.FSCL_WK_IN_YR_NUM BETWEEN 26 AND 41
 
 WHERE ce.RSPNS_ID <> '9'  -- rspns_id = 9 for unanswered questions
   AND ce.QSTN_ID NOT IN ('Q1','Q11') -- these questions are not in Customer Connection or Store Operations scores
