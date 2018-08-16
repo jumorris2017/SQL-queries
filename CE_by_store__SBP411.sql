@@ -1,3 +1,5 @@
+
+with sq as (
 SELECT
    c.FSCL_YR_NUM
   --,c.FSCL_PER_IN_YR_NUM
@@ -80,7 +82,7 @@ FROM APPDWH.AFT_CV_SRVY_RSPNS ce
   INNER JOIN APPDWH.ADT_CAL c
     ON TRUNC(ce.TRANS_DTM) = c.CAL_DT
       AND c.FSCL_YR_NUM = 2018
-      AND c.FSCL_PER_IN_YR_NUM IN (4,5,6)
+      AND c.FSCL_PER_IN_YR_NUM IN (9,10)
       
   INNER JOIN APPDWH.ADT_STORE org
       ON ce.STORE_NUM = org.STORE_NUM
@@ -98,3 +100,6 @@ GROUP BY
   ,ce.STORE_NUM
   --,org.OWNR_TYPE_CD
   --,org.DRIVE_THRU_IND
+)
+select * from sq
+ORDER BY Q2_6_Response_Total ASC
